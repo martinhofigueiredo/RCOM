@@ -11,7 +11,7 @@
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
-#define _POSIX_SOURCE 1 /* POSIX compliant source */
+#define _POSIX_SOURCE 1 
 #define FALSE 0
 #define TRUE 1
 
@@ -33,11 +33,6 @@ int main(int argc, char **argv)
   char buf[255];
   int i, sum = 0, speed = 0;
 
-  /*
-    Open serial port device for reading and writing and not as controlling tty
-    because we don't want to get killed if linenoise sends CTRL-C.
-  */
-
   fd = open(argv[1], O_RDWR | O_NOCTTY);
   if (fd < 0)
   {
@@ -46,7 +41,7 @@ int main(int argc, char **argv)
   }
 
   if (tcgetattr(fd, &oldtio) == -1)
-  { /* save current port settings */
+  {
     perror("tcgetattr");
     exit(-1);
   }
@@ -55,17 +50,10 @@ int main(int argc, char **argv)
   newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
   newtio.c_iflag = IGNPAR;
   newtio.c_oflag = 0;
-
-  /* set input mode (non-canonical, no echo,...) */
   newtio.c_lflag = 0;
+  newtio.c_cc[VTIME] = MINTIME; 
+  newtio.c_cc[VMIN] = MINBYTES; 
 
-  newtio.c_cc[VTIME] = MINTIME; /* inter-character timer unused */
-  newtio.c_cc[VMIN] = MINBYTES; /* blocking read until 5 chars received */
-
-  /* 
-    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
-    leitura do(s) pr�ximo(s) caracter(es)
-  */
 
   tcflush(fd, TCIOFLUSH);
 
@@ -83,9 +71,7 @@ int main(int argc, char **argv)
     exit(EXIT_FAILURE);
   }
 
-  //printf("0x%02x\n", i);
 
-  // Enviar SET
   char F = 0x7E;
   char A = 0x03;
   char C = 0x03;

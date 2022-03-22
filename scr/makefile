@@ -1,4 +1,5 @@
 compile :
+	make clean
 	mkdir exec
 	gcc -Wall -o exec/writenoncanonical writenoncanonical.c
 	gcc -Wall -o exec/noncanonical noncanonical.c
