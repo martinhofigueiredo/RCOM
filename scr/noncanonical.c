@@ -5,21 +5,17 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <stdio.h>
+#include "lib.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
 
-int FLAG_RCV = FALSE;
-int A_RCV = FALSE;
-int C_RCV = FALSE;
-int BCC_OK = FALSE;
+int RECEIVED_SET, FLAG_RCV, A_RCV, C_RCV, BCC1_OK;
 
-#define F = 0x7E;
-#define A 0x03;
-#define C = 0x03;
-#define BCC1 = 0x03 ^ 0x03;
+typedef unsigned char BYTE;
+int check_set_byte(BYTE s);
 
 volatile int STOP = FALSE;
 
@@ -41,6 +37,7 @@ int main(int argc, char **argv)
     because we don't want to get killed if linenoise sends CTRL-C.
   */
 
+  // VER SLIDE 17 do guiao de trabalho
   fd = open(argv[1], O_RDWR | O_NOCTTY);
   if (fd < 0)
   {
@@ -62,7 +59,7 @@ int main(int argc, char **argv)
   /* set input mode (non-canonical, no echo,...) */
   newtio.c_lflag = 0;
 
-  newtio.c_cc[VTIME] = 0; /* inter-character timer unused */
+  newtio.c_cc[VTIME] = 5; /* inter-character timer unused */
   newtio.c_cc[VMIN] = 1;  /* blocking read until 5 chars received */
 
   /*
@@ -92,23 +89,31 @@ int main(int argc, char **argv)
   write(fd, buf, bsize);
 */
 
-  //le SET
-  char ua[5];
+  // llopen State
+  BYTE set_byte;
+  RECEIVED_SET = FLAG_RCV = A_RCV = C_RCV = BCC1_OK = FALSE;
   printf("||\n");
-  res = read(fd, ua, 1);
+  while (!RECEIVED_SET)
+  {
+    read(fd, &set_byte, 1);
+    check_set_byte(set_byte);
+    printf("|0x%02x|\n", set_byte);
+  }
 
-  for (int i = 0; i < 5; i++)
-    printf("|0x%02x|\n", ua[i]);
-
+  BYTE ua[5];
   //envia UA
   printf("--------------\n");
-  ua[1] = 0x01;
-  ua[2] = 0x07;
-  ua[3] = ua[1] ^ ua[2];
+  ua[0] = F_UA;
+  ua[1] = A_UA;
+  ua[2] = C_UA;
+  ua[3] = BCC1_UA;
+  ua[4] = F_UA;
+
   for (int i = 0; i < 5; i++)
     printf("|0x%02x|\n", ua[i]);
-
   write(fd, ua, 5);
+
+
 
   sleep(1);
   tcsetattr(fd, TCSANOW, &oldtio);
@@ -116,16 +121,43 @@ int main(int argc, char **argv)
   return 0;
 }
 
-int check_flag_byte(char s)
+int check_set_byte(BYTE s)
 {
+  // Switch used to simulate SET State Machine
   switch (s)
   {
-  case 'a':
-    /* code */
+  case F_SET:
+    // Received end of UA
+    if (BCC1_OK)
+      RECEIVED_SET = TRUE;
+      
+    // Received normal Flag
+    else
+    {
+      FLAG_RCV = TRUE;
+      A_RCV = C_RCV = BCC1_OK = FALSE;
+    }
     break;
-
+  case A_SET:
+    // C_SET case (which coincidentally has the same number as A_SET)
+    if (A_RCV)
+      C_RCV = TRUE;
+    // Actual A_SET case
+    else if (FLAG_RCV)
+      A_RCV = TRUE;
+    break;
+  case BCC1_SET:
+    if (C_RCV)
+      BCC1_OK = TRUE;
+    break;
   default:
+    FLAG_RCV = A_RCV = C_RCV = BCC1_OK = FALSE;
     break;
   }
+  return TRUE;
+}
+
+int llopen(int porta, int mode){
+
   return 0;
 }

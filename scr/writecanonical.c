@@ -56,11 +56,6 @@ int main(int argc, char** argv)
 
 
 
-  /* 
-    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a 
-    leitura do(s) pr�ximo(s) caracter(es)
-  */
-
 
 
     tcflush(fd, TCIOFLUSH);
@@ -73,7 +68,6 @@ int main(int argc, char** argv)
     printf("New termios structure set\n");
 
 
-
     for (i = 0; i < 255; i++) {
       buf[i] = 'a';
     }
@@ -83,16 +77,8 @@ int main(int argc, char** argv)
     
     res = write(fd,buf,255);   
     printf("%d bytes written\n", res);
- 
-
-  /* 
-    O ciclo FOR e as instru��es seguintes devem ser alterados de modo a respeitar 
-    o indicado no gui�o 
-  */
 
 
-
-   
     if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
       perror("tcsetattr");
       exit(-1);

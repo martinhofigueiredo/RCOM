@@ -1,6 +1,6 @@
-compile :
-	make clean
+initial:
 	mkdir exec
+compile :
 	gcc -Wall -o exec/writenoncanonical writenoncanonical.c
 	gcc -Wall -o exec/noncanonical noncanonical.c
 write:
@@ -8,4 +8,4 @@ write:
 read:
 	./exec/noncanonical /dev/tty$(port)
 clean:
-	rm -r exec/
+	rm exec/*
