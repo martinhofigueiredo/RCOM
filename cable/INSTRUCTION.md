@@ -32,3 +32,7 @@ sudo ./cable
 - ```-- off``` &rarr; turns off the cable
 
 - ```-- end ``` &rarr;  stops execution of the program
+
+# BUGFIX FOR Containers or non root users
+
+- Change ```/dev/``` folder to ```/tmp/```

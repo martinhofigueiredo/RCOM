@@ -30,6 +30,3 @@ For virtual Serial Ports
 
 - Change ```/dev/``` folder to ```/tmp/```
 
-# Notes
-
-- ```make run``` should do all of the above in order and open the new terminals
