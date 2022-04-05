@@ -3,6 +3,6 @@ compile:
 run:
 	make compile
 	sudo socat -d -d PTY,link=/tmp/ttyS10,mode=777 PTY,link=/tmp/ttyS11,mode=777 &
-	sudo ./cable
+	sudo ./cable 
 clean:
 	rm cable

@@ -3,6 +3,6 @@ initial:
 compile :
 	gcc -Wall protocol.c -o ../protocol/protocol.o
 run:
-	./../protocol/protocol.o /dev/tty$(port)
+	./../protocol/protocol.o /tmp/tty$(port)
 clean:
 	rm ../protocol/protocol.o

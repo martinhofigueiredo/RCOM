@@ -4,10 +4,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include "../src/protocol.c"
 
 
 /*
- * $1 /dev/ttySxx
+ * $1 /tmp/ttySxx
  * $2 tx | rx
  * $3 filename
  */
@@ -16,7 +17,7 @@ int main(int argc, char *argv[]) {
 
 	if (argc < 4)
 	{
-		printf("usage: progname /dev/ttySxx tx|rx filename\n");
+		printf("usage: progname /tmp/ttySxx tx|rx filename\n");
 		exit(1);
 	}
 
