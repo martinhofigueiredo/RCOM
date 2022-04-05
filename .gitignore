@@ -1,2 +1,3 @@
-scr/exec
 test/cable
+scr/exec/writenoncanonical
+scr/exec/noncanonical

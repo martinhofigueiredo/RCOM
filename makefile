@@ -1,6 +1,9 @@
 cable:
 	cd test	&& make run
 run:
-	cd scr && make clean && make compile && make $(mode) $(port)
+	cd scr && make compile && make $(mode) port=$(port)
 build:
-	cd scr && make clean && make compile
+	cd scr && make compile
+clean:
+	cd scr && make clean
+	cd test && make clean
