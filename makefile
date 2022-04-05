@@ -1,9 +1,12 @@
-cable:
-	cd cable	&& make run
 run:
-	cd scr && make compile && make $(mode) port=$(port)
+	make build && make app && make cable &&cd src && make $(mode) port=$(port)
 build:
-	cd scr && make compile
+	cd src && make compile
+app:
+	cd application && ./build.sh
+cable:
+	cd cable && make run
+
 clean:
-	cd scr && make clean
+	cd src && make clean
 	cd cable && make clean
