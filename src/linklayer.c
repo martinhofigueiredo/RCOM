@@ -1,7 +1,7 @@
 #include "../application/linklayer.h"
 #include <stdio.h>
 
-/*int main(){
+int main(){
     linkLayer connectionParameters;
     char buff;
     printf("Hello World!\n");
@@ -9,7 +9,7 @@
     printf("llwrite return: %d\n", llwrite(&buff,1));
     printf("llread return: %d\n", llread(&buff));
     printf("llclose return: %d\n", llclose(1));
-}*/
+}
 
 // Opens a conection using the "port" parameters defined in struct linkLayer, returns "-1" on error and "1" on sucess
 int llopen(linkLayer connectionParameters){
