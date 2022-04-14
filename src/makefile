@@ -1,8 +1,4 @@
-initial:
-	mkdir exec
 compile :
-	gcc -Wall protocol.c -o ../protocol/protocol.o
-run:
-	./../protocol/protocol.o /tmp/tty$(port)
+	gcc -Wall linklayer.c -o ../protocol/linklayer.o 
 clean:
 	rm ../protocol/protocol.o
