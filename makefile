@@ -1,7 +1,7 @@
-run:
-	make build && make app && make cable &&cd src && make $(mode) port=$(port)
 build:
-	cd src && make compile
+	gcc -Wall -c src/linklayer.c -o protocol/linklayer.o 
+clean:
+	rm ../protocol/protocol.o
 app:
 	cd application && ./build.sh
 cable:

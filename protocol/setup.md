@@ -4,6 +4,7 @@ For virtual Serial Ports
 
 ## 1. Copy your linklayer .o files into the protocol folder
 - Done by the makefile in src, which compiles and puts the output in protocol folder
+- To compile to objects, gcc needs the flag `-c` so that it doesn't need a reference to a main function in our library.
 ## 2. Compile the application with ./build.sh, which will build with your protocol .o code
 - ```build.sh``` is called in the main make of the project
 ## 3. Compile and run the virtual cable program
