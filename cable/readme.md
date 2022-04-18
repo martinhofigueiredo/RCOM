@@ -1,4 +1,4 @@
-# Test Protocol
+# Test Protocol for virtual serial port
 
 ## If you don't have a serial port you can still implement the protocol and application.
 - On Windows (you need cygwin):
@@ -33,6 +33,16 @@ sudo ./cable
 
 - ```-- end ``` &rarr;  stops execution of the program
 
-# BUGFIX FOR Containers or non root users
+#### BUGFIX FOR Containers or non root users
 
 - Change ```/dev/``` folder to ```/tmp/```
+
+# Test Protocol for Laboratory Serial Port
+
+1. Connect to FEUP's VPN
+
+2. Connect with SSH to the exposed computer on the lab (the ip is X.X.X.X)
+
+3. Tunnel from that computer to root one and setup the link on both pc
+
+4. Test protocol with a actual physical cable inbetween
