@@ -19,17 +19,17 @@ int main(int argc, char** argv)
  
     printf("\n");
 
-    system("socat -d -d PTY,link=/tmp/ttyS10,mode=777 PTY,link=/tmp/emulatorTx,mode=777 &");
+    system("socat -d -d PTY,link=/dev/ttyS10,mode=777 PTY,link=/dev/emulatorTx,mode=777 &");
     sleep(1);
     printf("\n");
 
-    system("socat -d -d PTY,link=/tmp/ttyS11,mode=777 PTY,link=/tmp/emulatorRx,mode=777 &");
+    system("socat -d -d PTY,link=/dev/ttyS11,mode=777 PTY,link=/dev/emulatorRx,mode=777 &");
     sleep(1);
 
 
     printf( "\n \n"
-            "Transmitter must open /tmp/ttyS10 \n"
-            "Receiver must open /tmp/ttyS11 \n \n"
+            "Transmitter must open /dev/ttyS10 \n"
+            "Receiver must open /dev/ttyS11 \n \n"
             "The cable program is sensible to the following interative commands:\n"
             "--- on   : connects the cable and data is exchanged (default state)\n"
             "--- off  : disconnects the cable disabling data to be exchanged\n"
@@ -38,8 +38,8 @@ int main(int argc, char** argv)
     int fdTx;
     struct termios oldtioTx,newtioTx;
 
-    fdTx = open("/tmp/emulatorTx", O_RDWR | O_NOCTTY );
-    if (fdTx <0) {perror("/tmp/emulatorTx"); exit(-1); }
+    fdTx = open("/dev/emulatorTx", O_RDWR | O_NOCTTY );
+    if (fdTx <0) {perror("/dev/emulatorTx"); exit(-1); }
 
     if ( tcgetattr(fdTx,&oldtioTx) == -1) { /* save current port settings */
       perror("tcgetattr");
@@ -63,8 +63,8 @@ int main(int argc, char** argv)
 
     int fdRx;
     struct termios oldtioRx,newtioRx;
-    fdRx = open("/tmp/emulatorRx", O_RDWR | O_NOCTTY );
-    if (fdRx <0) {perror("/tmp/emulatorRx"); exit(-1); }
+    fdRx = open("/dev/emulatorRx", O_RDWR | O_NOCTTY );
+    if (fdRx <0) {perror("/dev/emulatorRx"); exit(-1); }
 
     if ( tcgetattr(fdRx,&oldtioRx) == -1) { /* save current port settings */
       perror("tcgetattr");
