@@ -196,7 +196,7 @@ int llread(char* packet){
       Nr = 1;
     }
   }
-
+  fd = open(linklayer.serialPort, O_RDWR | O_NOCTTY );
   result = receive_DATA(fd, packet, MAX_PAYLOAD_SIZE);
   printf("Bytes received: %d bytes", result);
 
