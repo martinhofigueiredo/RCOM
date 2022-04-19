@@ -1,973 +1,1053 @@
-/*Non-Canonical Input Processing*/
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <signal.h>
-#include <stdlib.h>
-#include <time.h>
-#define PBSTR "||||||||||||||||||||||||||||||||||||||||||||||||||"
-#define PBWIDTH 50
-#define BAUDRATE B38400
-#define _POSIX_SOURCE 1 /* POSIX compliant source */
-#define FALSE 0
-#define TRUE 1
-#define TRANSMITTER 0
-#define RECEIVER 1
-#define FLAG 0x7e
-#define ADDRESS 0x03
-#define SET 0x03
-#define DISC 0x0b
-#define UA 0x07
-#define RR0 0x05
-#define RR1 0x85
-#define REJ0 0x01
-#define REJ1 0x81
-#define TRAMA0 0x00
-#define TRAMA1 0x40
+#include "linklayer.h"
+
+//Receiver
+#define FLAG_RCV 0x7E
+#define A_RCV 0x01
+#define C_RCV 0x07
+//Transmiter
+#define FLAG_TM 0x7E
+#define A_TM 0x03
+#define C_TM 0x03
+
 #define ESCAPE 0x7d
-#define BUFFER_SIZE 520
-int rpad,lpad;
-int val=0;
-int contador_progresso=0;
-double percentagem;
-int fer = 0, modo;
-volatile int STOP=FALSE,END=FALSE;
-int fd, i=0, sequencia = -1;
-struct termios oldtio,newtio;
-unsigned char trama_esperada = TRAMA0;
-int flag=1, conta=1;
-int totalbytessent = 0;
 
-int llclose(int port, int MODE);
-void atende()                   // atende alarme
-{
-	printf("alarme # %d\n", conta);
-	flag=1;
-	conta++;
-}
-
-
-void errorgenerator(unsigned char *buffer, int length) {
-
-	int indice=0,p;
-	time_t t;
-	srand((unsigned) time(&t));
-	p = rand() % 100 + 1;
-	if(p<=fer) {
-		do {
-
-			indice = rand() % (length - 3) + 1;
-
-		} while (buffer[indice] == 0x7d || buffer[indice] == 0x7e || buffer[indice] == 0x5e || buffer[indice] == 0x5d);
-	}
-
-	buffer[indice] = 0x00;
-	return;
-
-}
-
-int packet_deconstructor(unsigned char *buffer, int length) {
-
-	int i, j;
-	unsigned char packet[BUFFER_SIZE];
-	memset(packet,0,BUFFER_SIZE);
-
-	length -= 4;
-
-	for(i=0;i<length;i++) {
-		packet[i] = buffer[i+4];
-	}
-
-	packet[i] = 0;
-	length--;
-
-	for(i=0;i<length;i++) {
-
-		if(packet[i]==ESCAPE) {
-			packet[i] = packet[i+1] ^ 0x20;
-			length--;
-
-			for(j=i+1;j<length;j++) {
-				packet[j] = packet[j+1];
-			}
-		}
-	}
-
-	memcpy(buffer,packet,BUFFER_SIZE);
-	return length;
-}
-
-int ler_trama(int port, unsigned char *buffer) {
-(void) signal(SIGALRM, atende);  // instala  rotina que atende interrupcao
-	long seconds, seconds_start;
-	int res = 0;
-	short STOP = 0, flags = 0, check;
-	unsigned char trama[BUFFER_SIZE], read_char = 0;
-
-	memset(trama,0,sizeof(trama));
-
-	while(!STOP) {
-		check = read(port, &read_char, 1);
-		while(conta<3 && check==0){
-			if(flag){
-	       alarm(3);                 // activa alarme de 3s
-	       flag=0;
-	    } else return -404;
-
-		}
-
-
-alarm(0);
-flag=1;
-
-		if(check==1)
-			conta=0;
-
-			if(conta==3 && check==0 ){
-			 exit(-1);
-			}
-		if(check==-1) {
-			return -4;
-		}
-		if(check==0)
-		{
-			return -404;
-		}
-
-
-		if(read_char == FLAG) {
-			if(res==0) {
-				trama[res]=read_char;
-				res++;
-			} else {
-				if(trama[res-1] == FLAG) {
-					res = 0;
-					memset(trama,0,sizeof(trama));
-					trama[res] = read_char;
-					res++;
-				} else {
-					trama[res] = read_char;
-					res++;
-					STOP = 1;
-				}
-			}
-		} else if(res>0) {
-			conta=0;
-			trama[res] = read_char;
-			res++;
-		}
-	}
-	//Verificação de erros
-
-	if(res < 5){
-		return -1;
-	} else if((trama[1]^trama[2])!=trama[3]){
-		return -2;
-	} else {
-		if(res>BUFFER_SIZE) {
-			return -5;
-		}
-		if(modo == RECEIVER)
-			errorgenerator(trama,res);
-		memcpy(buffer,trama,BUFFER_SIZE);
-		return res;
-	}
-} //retorna tamanho da trama ou negativo em caso de erro
-
-int enviar_trama(int port, unsigned char *buffer, int length) {		//Retorna tamanho da trama enviada ou negativo em caso de erro
-
-	int res, i;
-
-	if(buffer[0] != FLAG || buffer[length-1] != FLAG) {
-		return -1;
-	}
-
-	res = write(port, buffer, length);
-
-	if(res != length) {
-		return -2;
-	}
-	if(res>0)
-		totalbytessent += res;
-
-	return res;
-}
-
-int resposta_receiver(int port, unsigned char c) {				//Retorna 5 (tamanho da trama) ou outro valor em caso de erro
-
-	unsigned char trama[5];
-
-	trama[0] = FLAG;
-	trama[1] = ADDRESS;
-	trama[2] = c;
-	trama[3] = trama[1]^trama[2];
-	trama[4] = FLAG;
-
-
-
-	return enviar_trama(port,trama,5);
-}
-
-int llread(int port, unsigned char *buffer) {
-
-	short state = 0, lido = 0;
-	unsigned char aux, n_trama;
-	int res, sizepacket, i, j;
-
-	while(!lido){
-		switch(state){
-			case 0:
-				res = ler_trama(port, buffer);
-
-
-				if(res<0)
-					if(res!=-404)
-						return -1; //-1 significa que o erro veio de ler_trama
-
-				if(res>5)		//vai para state 1 se se tratar de uma trama I
-					state = 1;
-				break;
-
-			case 1:				//destuffing e verificar BCC2
-
-				n_trama = buffer[2];
-
-				sizepacket = packet_deconstructor(buffer, res);
-
-
-				aux = 0; //aux usado para calcular bcc
-
-				for(i = 0;i < sizepacket-1; i++) {
-					aux ^= buffer[i];
-				}
-
-				if(aux != buffer[sizepacket-1])
-				{
-					state = 2; //REJ
-				}
-				else
-				{
-					state = 3; //RR
-				}
-				break;
-
-			case 2:
-				if(n_trama == TRAMA0)
-				{
-					resposta_receiver(port,REJ0);
-				}
-				else
-				{
-					resposta_receiver(port,REJ1);
-				}
-
-				res = ler_trama(port, buffer);
-
-
-				if(res<0)
-					if(res!=-404)
-						return -1; //-1 significa que o erro veio de ler_trama
-
-				if(res>5) {		//vai para state 1 se se tratar de uma trama I
-					state = 1;
-				}
-				break;
-
-			case 3:
-				if(trama_esperada == n_trama){
-					if(trama_esperada == TRAMA0){
-						trama_esperada = TRAMA1;
-						resposta_receiver(port,RR1);
-					} else {
-						trama_esperada = TRAMA0;
-						resposta_receiver(port,RR0);
-					}
-				} else {
-					if(trama_esperada == TRAMA0) {
-						resposta_receiver(port,RR0);
-					}
-					else {
-						resposta_receiver(port,RR1);
-					}
-					return -2;
-				}
-
-				lido = 1;
-				break;
-
-			default:
-				break;
-		}
-	}
-
-	return res;
-
-}
-
-void llopen(int MODE, unsigned char * buf) {
-	int res,teste=0;
-	if (MODE == RECEIVER)
-	{
-			res = read(fd,buf,5);   /* returns after 1 chars have been input */
-	                   /* so we can printf... */
-
-
-	    if (conta == 5)
-	    {
-	        printf("Timeout: Reiniciando...\n");
-	        sleep(1);
-	        conta = 0;
-	    }
-
-		if (res == 5)
-		{
-	
-
-
-			if ((buf[0] == FLAG) &&
-						(buf[1] == ADDRESS) &&
-						(buf[2] == SET) &&
-						(buf[3] == (buf[1]) ^ (buf[2])) &&
-						(buf[4] == FLAG)) // recebido inicio e final de trama
-			{
-
-			    sleep(1);
-			    memset(buf, 0, 5);
-
-			    buf[0] = FLAG;
-			    buf[1] = ADDRESS;
-			    buf[2] = UA;
-			    buf[3] = ((buf[1]) ^ (buf[2]));
-			    buf[4] = FLAG;
-
-			    write(fd, buf, 5); // manda a trama de 5 bytes
-					STOP=TRUE;
-
-			}	 else return -1000;
-	 	}
-	}
-	else if (MODE == TRANSMITTER)
-	{
-		buf[0] = FLAG;
-		buf[1] = ADDRESS;
-		buf[2] = SET;
-		buf[3] = ((buf[1]) ^ (buf[2]));
-		buf[4] = FLAG;
-		for (i = 0; i < 5; i++)
-		{
-			teste =	write(fd, buf+i, 1);
-			if(teste>0)
-				totalbytessent += teste;
-		}
-		memset(buf, 0, 5);
-
-		res = 0;
-		i = 0;
-		flag = 0;
-		while (STOP == FALSE)
-		{
-				res = read(fd, buf+i, 1);
-				if (buf[i] == FLAG) {
-					flag++;
-				}
-				if(flag == 2){
-					STOP = TRUE;
-				}
-				i++;
-		}
-
-		if ((buf[0] == FLAG) &&
-					(buf[1] == ADDRESS) &&
-					(buf[2] == UA) &&
-					(buf[3] == (buf[1]) ^ (buf[2])) &&
-					(buf[4] == FLAG)) // recebido inicio e final de trama
-		{
-			STOP=TRUE; // acaba
-		} else return -1000;
-	}
-}
-
-int llclose(int port, int MODE) {
-
-	unsigned char trama_s[BUFFER_SIZE];
-	int state = 0, STOP = 0, res;
-
-	trama_s[0] = FLAG;
-	trama_s[1] = ADDRESS;
-	trama_s[2] = DISC;
-	trama_s[3] = trama_s[1] ^ trama_s[2];
-	trama_s[4] = FLAG;
-
-  if(MODE == RECEIVER) {
-  	while(!STOP) {
-  		switch(state) {
-  			case 0:
-
-  				res = enviar_trama(port, trama_s, 5);
-
-  				if(res<0)
-  					return -1;
-
-  				state = 1;
-  				break;
-
-  			case 1:
-
-  				res = ler_trama(port, trama_s);
-
-  				if(res == -404)
-  					break;
-  				else if(res < 0)
-  					return -2;
-
-  				if(trama_s[2] == UA)
-  					STOP = 1;
-  				else {
-  					state = 0;
-  				}
-
-  				break;
-
-  			default:
-  				break;
-  		}
-  	}
-
-  	return 0;
-  } else if (MODE == TRANSMITTER) {
-    enviar_trama(port, trama_s, 5);
-    memset (trama_s, 0, 5);
-
-		if(END) 	{
-			exit(0);
-		}
-
-    while(STOP==FALSE)
-  	{
-  		res=ler_trama(fd,trama_s);
-  		sleep(1);
-
-  		if((trama_s[0]==FLAG)
-  		&& (trama_s[1]==ADDRESS)
-  		&& (trama_s[2]==DISC)
-  		&& (trama_s[3]== trama_s[1]^trama_s[2])
-  		&& (trama_s[4]==FLAG)) //condicao para verificacao de DISC
-  		{
-  			sleep(1);
-  			STOP=TRUE;
-  		}
-
-      else
-      {
-        return -1;
-      }
-  	}
-    	trama_s[0] = FLAG;
-    	trama_s[1] = ADDRESS;
-    	trama_s[2] = UA;
-    	trama_s[3] = trama_s [1]^trama_s[2];
-    	trama_s[4] = FLAG;
-  		res = write(fd,trama_s,5);
-
-		if(res>0)
-		totalbytessent += res;
-
-    return 0;
-  }
-	if(END)
-	exit(0);
-  return -2;
-}
-
-int packet_header_generator(int id_packet,unsigned char *dados,int length)
-{
-  unsigned char bcc = 0;
-  char *fname;
-  int i,j, fname_s;
-			switch(id_packet)
-		  {
-
-			case 1:   //vai gerar o pacote de dados do ficheiro
-
-				if(length+5 > BUFFER_SIZE) {
-					return -1;
-				}
-
-				for(i=length;i>0;i--) {
-					dados[i+3] = dados[i-1];
-				}
-
-				dados[0]=1;
-				dados[1]=sequencia%256;
-				dados[2]=length/256;
-				dados[3]=length%256;
-				length = length+4;
-
-        break;
-
-			case 2:   //vai criar pacote de START
-
-        fname_s = strlen(dados);
-        fname = (char*) malloc(fname_s*sizeof(char));
-        memcpy(fname,dados,fname_s);
-        memset (dados, 0, BUFFER_SIZE);
-        dados[0]=2;
-        dados[1]=0; dados[2]=4;
-        dados[3]=length>>24;	dados[4]=length>>16;	dados[5]=length>>8; dados[6]=length;
-        dados[7]=1; dados[8]=(unsigned char) fname_s;
-        for(i=0;i<fname_s;i++) {
-          dados[9+i] = fname[i];
-        }
-
-        length = 9+fname_s;
-
-      break;
-
-			case 3:  //vai criar pacote de END
-
-        fname_s = strlen(dados);
-        fname = (char*) malloc(fname_s*sizeof(char));
-        memcpy(fname,dados,fname_s);
-				memset (dados, 0, BUFFER_SIZE);
-				dados[0]=3;
-				dados[1]=0; dados[2]=4;
-				dados[3]=length>>24;	dados[4]=length>>16;	dados[5]=length>>8; dados[6]=length;
-				dados[7]=1; dados[8]=(unsigned char) fname_s;
-        for(i=0;i<fname_s;i++) {
-          dados[9+i] = fname[i];
-        }
-
-        length = 9+fname_s;
-
-        break;
-      }
-
-      for (i = 0; i < length; i++)
-      {
-        bcc ^= dados[i];
-      }
-
-      dados[length] = bcc;
-      length++;
-
-      for(i=0;i<length;i++)
-		  {
-			     if(dados[i]==ESCAPE || dados [i] == FLAG)				//byte stuffing
-			     {
-				     for(j=length;j>i;j--)
-				     {
-		           dados[j]=dados[j-1];
-			       }
-		         length++;
-		         i++;
-             dados[i]=dados[i-1]^0x20;
-	           dados[i-1]=ESCAPE;
-			     }
-		  }
-
-
-      return length;
-
-}
-
-int frame_header_generator(unsigned char *buffer, int length, unsigned char trama_esperada) { //retorna tamanho total da trama ou negativo em erro
-
-	int i;
-
-	if(length>BUFFER_SIZE-5) {
-		return -1;
-	}
-
-	for(i=length;i>0;i--)
-		buffer[i+3]=buffer[i-1];	//move todos os valores 4 posições para ter espaço para o cabeçalho da trama
-
-	buffer[0] = FLAG;
-	buffer[1] = ADDRESS;
-	buffer[2] = trama_esperada;
-	buffer[3] = buffer[1]^buffer[2];
-	buffer[length+4] = FLAG;
-
-	return length+5;
-}
-
-int llwrite(int port, unsigned char *buffer, int length) {
-
-	short STOP = 0, state = 0;
-	int i, res;
-	unsigned char resposta[BUFFER_SIZE];
-
-	length = frame_header_generator(buffer, length, trama_esperada);
-	if(length == -1)
-		return -1; //-1 significa que o erro veio de frame_header_generator
-
-	while(!STOP) {
-		switch(state) {
-			case 0:
-
-				res = enviar_trama(port, buffer, length);
-
-				if(res<0)
-					return -2; //-2 significa que o erro veio de enviar_trama
-
-				state = 1;
-				break;
-
-
-			case 1:	//ler a resposta
-
-				i = ler_trama(port, resposta);
-
-				if(i<0)
-          if(i!=-404) {
-
-					  return -3; //-3 significa que o erro veio de ler_trama
-            }
-				if (i == 5)
-					state=2;
-        if(i==-404)
-          state=0;
-			break;
-
-			case 2:
-				if((trama_esperada == TRAMA0 && resposta[2] == RR1)
-				|| (trama_esperada == TRAMA1 && resposta[2] == RR0)) {
-
-					trama_esperada = trama_esperada ^ 0x40;
-					STOP = 1;
-
-				} else if ((trama_esperada == TRAMA0 && resposta[2] == REJ0)
-				        || (trama_esperada == TRAMA1 && resposta[2] == REJ1)) {
-
-					state = 0;
-				} else if (resposta[2] == DISC) {
-					sleep(2);
-					exit(1);
-					return -7;
-				} else {
-					state = 0;
-				}
-
-
-				break;
-
-			default:
-				break;
-		}
-	}
-
-	return res;
-
-}
-
-int receiver() {
-
-
-	if ( tcgetattr(fd,&oldtio) == -1)
-	{
-	    /* save current port settings */
-		perror("tcgetattr");
-		exit(-1);
-	}
-
-	bzero(&newtio, sizeof(newtio));
-	newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
-	newtio.c_iflag = IGNPAR;
-	newtio.c_oflag = 0;
-
-	/* set input mode (non-canonical, no echo,...) */
-	newtio.c_lflag = 0;
-
-	newtio.c_cc[VTIME]    = 1;/* inter-character timer unused */
-	newtio.c_cc[VMIN]     = 0;/* blocking read until 5 chars received */
-
-	/*
-	   VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
-	   leitura do(s) prximo(s) caracter(es)
-	 */
-
-	tcflush(fd, TCIOFLUSH);
-
-	if ( tcsetattr(fd,TCSANOW,&newtio) == -1)
-	{
-    	perror("tcsetattr");
-    	exit(-1);
-	}
-
-	//(void) signal(SIGALRM, atende); // instala  rotina que atende interrupcao
-
-
-  FILE *gifp;
-  short state = 0, size_s = 0, name_s = 0;
-  unsigned char buf[BUFFER_SIZE];
-  char *fname, *fname_compare;
-  int filesize, datasize, ultima_seq = 0;
-
-  while (STOP == FALSE)
-	{
-		llopen(RECEIVER,buf);
-	}
-
-	STOP = FALSE;
-
-	while(STOP == FALSE) {
-		switch(state) {
-			case 0:	//espera pela trama start
-
-				if(llread(fd,buf)==-2)
-					break;
-
-				if(buf[0]==2) {
-					state = 1;
-				}
-
-				break;
-
-			case 1:
-				size_s = buf[2]; //tamanho da informacao do tamanho do ficheiro
-
-				for(i=0;i<size_s;i++) {
-					filesize += (int) buf[i+3] << (8*(size_s-(i+1)));
-				}
-
-				name_s = buf[3+size_s+1]; //tamanho da informacao do nome do ficheiro
-				fname = (char*) malloc(name_s+1); //espaco para \0
-
-				for(i=0;i<name_s;i++) {
-					fname[i] = buf[3+size_s+2+i];
-				}
-				fname[name_s] = '\0';
-				gifp = fopen(fname,"wb");
-
-				state = 2;
-				break;
-
-			case 2:	//ler dados ate receber end
-
-				if(llread(fd,buf)==-2) {
-					break;
-				}
-
-				if(buf[0] == 3) {
-					state = 3;
-					break;
-				}
-
-				if(buf[1] == ultima_seq%256)
-					ultima_seq++;
-
-				datasize = (int) buf[2]*256 + (int) buf[3];
-
-				for(i=0;i<datasize;i++) {
-					fputc(buf[i+4], gifp);
-				}
-
-				break;
-
-			case 3:
-
-				size_s = buf[2]; //tamanho da informacao do tamanho do ficheiro
-
-				for(i=0;i<size_s;i++) {
-					filesize -= (int) buf[i+3] << (8*(size_s-(i+1)));
-				}
-
-				name_s = buf[3+size_s+1]; //tamanho da informacao do nome do ficheiro
-				fname_compare = (char*) malloc(name_s+1);  //espaco para \0
-
-				for(i=0;i<name_s;i++) {
-					fname_compare[i] = buf[3+size_s+2+i];
-				}
-				fname_compare[name_s] = '\0';
-
-
-				fclose(gifp);
-				free(fname);
-				free(fname_compare);
-
-				while(buf[2] != DISC)
-					ler_trama(fd,buf);
-				STOP = TRUE;
-				break;
-		}
-	}
-	llclose(fd,RECEIVER);
-	tcsetattr(fd,TCSANOW,&oldtio);
-	close(fd);
-	return 0;
-}
-
-int transmitter(char* fname) {
-
-	if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
-									perror("tcgetattr");
-									exit(-1);
-	}
-
-	bzero(&newtio, sizeof(newtio));
-	newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
-	newtio.c_iflag = IGNPAR;
-	newtio.c_oflag = 0;
-
-	/* set input mode (non-canonical, no echo,.7e35622040029271b70696e6775696d2e676966000007e..) */
-	newtio.c_lflag = 0;
-
-	newtio.c_cc[VTIME]    = 1;/* inter-character timer unused */
-	newtio.c_cc[VMIN]     = 0;/* blocking read until 5 chars received */
-
-
-
-	/*
-	   VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
-	   leitura do(s) prï¿½ximo(s) caracter(es)
-	 */
-
-
-
-	tcflush(fd, TCIOFLUSH);
-
-	if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
-									perror("tcsetattr");
-									exit(-1);
-	}
-
-
-  unsigned char character_of_file, replyc;
-  unsigned char dados[BUFFER_SIZE];
-  FILE  *img;
-  int length_file=0, packetsize;
-  char inicio=0;
-  char ciclo=0;
-  char id_pacote=0;
-  int res = 0;
-  int contador_byteswritten=0;
-  int i;
-
-  llopen(TRANSMITTER, dados);
-  memset(dados,0,BUFFER_SIZE);
-
-  //||||||||||||||||||||||||||||||||||||||||||||||||||||| ABRIR O DOCUMENTO PINGUIM.GIF||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-  img=fopen(fname,"rb");
-  character_of_file=0;
-  fseek(img,0L,SEEK_END);
-  length_file=ftell(img);
-  //|||||||||||||||||||||||||||||||||||||||||||||||||||||ENVIO DE TRAMA START||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-  memcpy(dados,fname,strlen(fname)+1);
-  packetsize = packet_header_generator(2,dados,length_file); //cria pacote de dados START,END ou SUPERVISION
-  llwrite(fd,dados,packetsize);
-
-  fseek(img,0L,SEEK_SET);
-  //comecar a comunicar de forma a enviar info
-  while(!feof(img) && !END)
-  {
-      if(contador_byteswritten<256)
-    {
-			character_of_file=fgetc(img);
-      dados[contador_byteswritten]=character_of_file;
-      contador_byteswritten++;
-    }
-
-    if(contador_byteswritten==256)
-    {
-
-      sequencia++;
-      packetsize = packet_header_generator(1,dados,contador_byteswritten);
-      llwrite(fd,dados,packetsize);
-			contador_progresso+=256;
-			percentagem=((double)contador_progresso/(double)length_file);
-			val = (int) (percentagem*100)+1;
-			lpad = (int) (percentagem * PBWIDTH);
-			rpad = PBWIDTH - lpad;
-    	printf ("\r%3d%% [%.*s%*s]", val, lpad, PBSTR, rpad, "");
-			fflush (stdout);
-			if(END)
-				break;
-
-      contador_byteswritten=0;
-
-    }
-  }
-  sequencia++;
-  contador_byteswritten--; // ignora-se o byte a mais // nao e uma mudanca definitiva
-  packetsize = packet_header_generator(1,dados,contador_byteswritten);
-	if(!END)
-  llwrite(fd,dados,packetsize);
-  memcpy(dados,fname,strlen(fname)+1);
-  packetsize = packet_header_generator(3,dados,length_file);
-	if(!END)
-  llwrite(fd,dados,packetsize);
-  fclose(img);
-	if(!END)
-  res = llclose(fd,TRANSMITTER);
-	else
-	llclose(fd,RECEIVER);
-  if (res == 1)
-  {
-      printf("\nConexão encerrada...\n");
-      sleep(3);
+int timeout = FALSE, count=1;
+int STOP = FALSE;
+int fd;
+int ACK_RCV = FALSE;
+int REJ = FALSE;
+//int Ns = 0, Nr = 1;
+linkLayer linklayer;
+
+//State machine
+typedef enum{
+  START, FLAG, A, C, BCC, S_STOP
+}states;
+
+//State machine to receive data
+//State machine to receive data
+typedef enum{
+    data_START, data_FLAG, data_A, data_C, BCC1, DATA, BCC2, data_S_STOP
+}data_states;
+
+struct termios oldtio, newtio;
+
+int send_SET(int fd);
+int receive_SET(int fd);
+int send_UA(int fd, char ch);
+int receive_UA(int fd, char ch);
+int send_DISC(int fd, char ch);
+int receive_DISC(int fd, char ch);
+void alarm_handler();
+int send_DATA(int fd, char* buffer, int buffSize);
+int receive_DATA(int fd, char* buffer, int buffSize);
+int send_ACK(int fd, char ch);
+int receive_ACK(int fd, char ch);
+int byteDestuffing(char *trama, int length, char *novaTrama);
+int byteStuffing(char* trama, int length, char* novaTrama);
+
+//=====================================================================================
+// Opens a conection using the "port" parameters defined in struct linkLayer,
+// returns "-1" on error and "1" on sucess
+
+int llopen(linkLayer connectionParameters){
+
+  int c, result;
+  char buf[255];
+  int i, sum = 0, speed = 0;
+  linklayer = connectionParameters;
+
+  if ((strcmp("/dev/ttyS10", linklayer.serialPort)!=0) &&
+        (strcmp("/dev/ttyS11", linklayer.serialPort)!=0) ) {
+    printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
+    exit(1);
   }
 
+  fd = open(linklayer.serialPort, O_RDWR | O_NOCTTY );
+  if (fd <0) {perror(connectionParameters.serialPort); exit(-1); }
 
-  if ( tcsetattr(fd,TCSANOW,&oldtio) == -1)
-  {
+  if ( tcgetattr(fd,&oldtio) == -1) { /* save current port settings */
+    perror("tcgetattr");
+    exit(-1);
+  }
+
+  bzero(&newtio, sizeof(newtio));
+  newtio.c_cflag = linklayer.baudRate | CS8 | CLOCAL | CREAD;
+  newtio.c_iflag = IGNPAR;
+  newtio.c_oflag = 0;
+
+  /* set input mode (non-canonical, no echo,...) */
+  newtio.c_lflag = 0;
+
+  newtio.c_cc[VTIME] = 0;   /* 1 second timeout t=0.1*TIME s*/
+  newtio.c_cc[VMIN]  = 0;   /* read will be satisfied if a single is read*/
+
+  tcflush(fd, TCIOFLUSH);
+
+  if ( tcsetattr(fd,TCSANOW,&newtio) == -1) {
     perror("tcsetattr");
     exit(-1);
   }
-  close(fd);
-  return 0;
+
+  printf("New termios structure set\n");
+
+  if(linklayer.role == 0){     //Transmitter
+
+    (void) signal(SIGALRM, alarm_handler);
+
+    result = send_SET(fd);   //SET send
+    printf("First SET sended: %d\n", result);
+
+    timeout=FALSE;
+
+    while(STOP == FALSE && (count < 4)){  //retransmite até 3x
+
+      // If exceeded (time-out), forces retransmission
+      if(timeout == TRUE){ //&& (count < 4)){
+        count++;
+        result = send_SET(fd); //Send SET
+        printf("Resending SET: %dbytes\n", result);
+        timeout=FALSE;
+      }
+
+      if(timeout==FALSE){
+        printf("timeout false\n");
+        alarm(3);
+        receive_UA(fd, 'R');
+      }
+
+    }
+  }else if(linklayer.role == 1){     //Receiver
+
+    receive_SET(fd);
+    result = send_UA(fd,'R'); //Send UA from receiver
+    printf("Bytes received: %d bytes\n", result);
+  }
+  alarm(0);
+  return 1;
 
 }
-/*
-int main(int argc, char** argv) {
 
-		struct timeval starttime, endtime;
-		int res;
+// Sends data in buf with size bufSize
+int llwrite(char* buf, int bufSize){
+  int result;
 
-	if ( (argc < 3) ||
-	((strcmp("/dev/ttyS0", argv[1])!=0) &&
-	(strcmp("/dev/ttyS1", argv[1])!=0) ) ||
-  ((strcmp("TX", argv[2])!=0) || argc < 4 )&&
-  (strcmp("RX", argv[2])!=0) )
-	{
-		printf("Usage:\tnserial SerialPort TX|RX FileName\n\tex: nserial /dev/ttyS1 TX pinguim.gif\n");
-		exit(1);
-	}
+  (void) signal(SIGALRM, alarm_handler);
+  result = send_DATA(fd, buf, bufSize);   //DATA sent from transmiter
+  printf("First DATA sent: %d\n", result);
+  timeout=FALSE;
+  ACK_RCV = FALSE;
+  REJ = FALSE;
 
-    fd = open(argv[1], O_RDWR | O_NOCTTY );
-  	if (fd <0) {perror(argv[1]); exit(-1); }
+  while(ACK_RCV == FALSE && (count < 4)){  //retransmite até 3x
+    // If exceeded (time-out), forces retransmission
+    if(timeout == TRUE || REJ == TRUE){
+      count++;
+      result = send_DATA(fd, buf, bufSize);
+      printf("Resending DATA: %dbytes\n", result);
+      timeout=FALSE;
+      REJ = FALSE;
+    }
 
+    if(timeout==FALSE){
+      //printf("timeout false\n");
+      alarm(3);
+      if(REJ == TRUE){
+        receive_ACK(fd, 'N'); //Receive Negative ACK (REJ)  from receiver
+      }
+      else{
+        receive_ACK(fd, 'P'); //Receive positive ACK (RR) from receiver
+      }
+    }
+  } /*
+  //Ligação corre bem
+  if(ACK_RCV == TRUE){
+    if(Ns == 0 && Nr == 1){
+      Ns = 1;
+      Nr = 0;
+    }
+    else if(Ns == 1 && Nr == 0){
+      Ns = 0;
+      Nr = 1;
+    }
+  }*/
+  alarm(0);
+  return result;
+}
 
+// Receive data in packet
+int llread(char* packet){
+  int result;
 
-	/*
-	   Open serial port device for reading and writing and not as controlling tty
-	   because we don't want to get killed if linenoise sends CTRL-C.
-	 */
+  result = receive_DATA(fd, packet, 2000);
+  printf("Bytes received: %d bytes", result);
 
+  if(result > 0){
+    if(REJ == TRUE){
+      send_ACK(fd, 'N'); //Send Negative ACK (REJ) from receiver
+    }
+    else{
+      send_ACK(fd, 'P'); //Send Positive ACK (RR) from receiver
+    }
+  }
 
+  return result;
+}
 
-	printf("Start of FILESENDER..\n\n\n\n\n\n\n\n\n\n\n\n");
+//======================================================================================
+/* Closes previously opened connection; if showStatistics==TRUE, link layer should print
+statistics in the console on close*/
 
-  if(!strcmp("RX",argv[2]))
-	{
-		printf("Escolha a probabilidade de erro: ");
-		scanf("%d",&fer);
-		printf("\n\n\n\n\n\n\n\n\n\n\n\n\n");
-		modo = RECEIVER;
+int llclose(int showStatistics){
+  int result;
 
-    return receiver();
-	}
-  else if(!strcmp("TX",argv[2])) {
-		modo = TRANSMITTER;
-		gettimeofday(&starttime,NULL);
-	  res = transmitter(argv[3]);
-		gettimeofday(&endtime,NULL);
-		printf("\nDemorou %f segundos.\n",(double)(endtime.tv_usec - starttime.tv_usec) / 1000000 + (double)(endtime.tv_sec - starttime.tv_sec));
-		printf("\nO transmissor enviou %d bytes.\n",totalbytessent);
-		return res;
-	}
+  if(linklayer.role == 0){
 
-  return -7;
-}*/
+    (void) signal(SIGALRM, alarm_handler);
+    result = send_DISC(fd, 'T');   //DISC sent from transmiter
+    printf("First DISC sent: %d\n", result);
+    timeout=FALSE;
+    STOP = FALSE;
+
+    while(STOP == FALSE && (count < 4)){  //retransmite até 3x
+      // If exceeded (time-out), forces retransmission
+      if(timeout == TRUE){ //&& (count < 4)){
+        count++;
+        result = send_DISC(fd, 'T');
+        printf("Resending DISC: %dbytes\n", result);
+        timeout=FALSE;
+      }
+
+      if(timeout==FALSE){
+        printf("timeout false\n");
+        alarm(3);
+        receive_DISC(fd, 'R');
+      }
+    }
+
+    if(STOP == TRUE){
+      result = send_UA(fd, 'T');
+      printf("UA sent: %d\n", result);
+    }
+
+  }
+  else if(linklayer.role == 1){
+    receive_DISC(fd, 'T');
+    result = send_DISC(fd,'R');
+    printf("Bytes sent from recetor: %d bytes\n", result);
+
+    receive_UA(fd,'T');
+
+  }
+  //fechar termios
+  close(fd);
+}
+
+//======================================================================================
+
+void alarm_handler()  // atende alarme
+{
+  timeout = TRUE;
+}
+
+int send_SET(int fd){
+
+  int res;
+  //Frame
+  unsigned char buffer[5];
+
+  printf("Sending SET\n");
+  buffer[0] = 0x7E;                 //F
+  buffer[1] = 0x03;                 //A   Tx ---> Rx
+  buffer[2] = 0x03;                 //C
+  buffer[3] = buffer[1]^buffer[2];  //BCC = A^C
+  buffer[4] = 0x7E;                 //F
+
+  res = write(fd, buffer, sizeof(buffer));
+  if(res < 0) printf("Error reading\n");
+
+  return res;
+}
+
+int receive_SET(int fd){
+  printf("Entrei no receive_SET\n");
+  states state = START;
+  int res = 0;
+  char character;
+  unsigned char buffer[5];
+  int pos = 0;
+  STOP = FALSE;
+
+  while(STOP == FALSE){
+    do {
+      res = read(fd, &character, 1);
+    } while(res < 1);
+      /* returns after 1 chars have been input */
+    if(res < 0){
+      printf("Error reading\n");
+    }
+    buffer[pos]=character;
+
+    switch(state){
+      case START:
+        if(buffer[pos] == FLAG_TM){
+          state = FLAG;
+          pos = 1;
+        }
+         else {
+           state = START;
+           pos = 0;
+           }
+        break;
+
+      case FLAG:
+        if(buffer[pos] == A_TM){
+          state = A;
+          pos = 2;
+        }
+        else if(buffer[pos] == FLAG_TM){
+          state = FLAG;
+          pos = 1;
+        }
+         else {
+           state = START;
+           pos = 0;
+         }
+        break;
+
+      case A:
+        if(buffer[pos] == C_TM){
+          state = C;
+          pos = 3;
+        }
+        else if(buffer[pos] == FLAG_TM){
+          state = FLAG;
+          pos = 2;
+        }
+        else {
+          state = START;
+          pos = 0;
+        }
+        break;
+
+      case C:
+        if(buffer[pos] == A_TM^C_TM){
+          state = BCC;
+          pos = 4;
+        }
+        else if(buffer[pos] == FLAG_TM){
+          state = FLAG;
+          pos = 1;
+        }
+        else {
+          state = START;
+          pos = 0;
+        }
+        break;
+
+      case BCC:
+        if(buffer[pos] == FLAG_TM){
+          state = S_STOP;
+        }
+        else {
+          state = START;
+          pos = 0;
+        }
+        break;
+
+      case S_STOP:
+        STOP = TRUE;
+        break;
+    }
+  }
+  return res;
+}
+
+int send_DISC(int fd, char ch){
+  int res;
+  unsigned char buffer[5];
+
+  if(ch == 'T'){
+    printf("\nSending DISC from transmiter\n");
+    buffer[0] = 0x7E;                 //F
+    buffer[1] = 0x03;                 //A   Tx ---> Rx
+    buffer[2] = 0x0B;                 //C
+    buffer[3] = buffer[1]^buffer[2];  //BCC = A^C
+    buffer[4] = 0x7E;                 //F
+  }
+  else if(ch == 'R'){
+    printf("Sending DISC from recetor\n");
+    buffer[0] = 0x7E;                 //F
+    buffer[1] = 0x01;                 //A   Rx ---> Tx
+    buffer[2] = 0x0B;                 //C
+    buffer[3] = buffer[1]^buffer[2];  //BCC = A^C
+    buffer[4] = 0x7E;                 //F
+  }
+
+  res = write(fd, buffer, sizeof(buffer));
+  if(res < 0) printf("Error reading\n");
+
+  return res;
+}
+
+int receive_DISC(int fd, char ch){
+  printf("\nEntrei no receive_DISC\n");
+  states state = START;
+  int res = 0;
+  char character;
+  unsigned char buffer[5];
+  int pos = 0;
+  char adress, control=0x0B;
+  STOP = FALSE;
+
+  if(ch == 'T'){
+    adress = 0x03;
+  }
+  else if(ch = 'R'){
+    adress = 0x01;
+  }
+
+  while(STOP == FALSE){
+    do {
+      res = read(fd, &character, 1);
+    } while(res < 1);  /* returns after 1 chars have been input */
+    if(res < 0){
+      printf("Error reading\n");
+    }
+    buffer[pos]=character;
+
+    if(timeout==TRUE){ //&& ch == 'R'){
+      return 0;
+    }
+
+    switch(state){
+      case START:
+        if(buffer[pos] == FLAG_RCV){
+          state = FLAG;
+          pos = 1;
+        }
+         else {
+           state = START;
+           pos = 0;
+           }
+        break;
+
+      case FLAG:
+        if(buffer[pos] == adress){
+          state = A;
+          pos = 2;
+        }
+        else if(buffer[pos] == FLAG_RCV){
+          state = FLAG;
+          pos = 1;
+        }
+         else {
+           state = START;
+           pos = 0;
+         }
+        break;
+
+      case A:
+        if(buffer[pos] == control){
+          state = C;
+          pos = 3;
+        }
+        else if(buffer[pos] == FLAG_RCV){
+          state = FLAG;
+          pos = 2;
+        }
+        else {
+          state = START;
+          pos = 0;
+        }
+        break;
+
+      case C:
+        if(buffer[pos] == adress^control){
+          state = BCC;
+          pos = 4;
+        }
+        else if(buffer[pos] == FLAG_RCV){
+          state = FLAG;
+          pos = 1;
+        }
+        else {
+          state = START;
+          pos = 0;
+        }
+        break;
+
+      case BCC:
+        if(buffer[pos] == FLAG_RCV){
+          state = S_STOP;
+        }
+        else {
+          state = START;
+          pos = 0;
+        }
+        break;
+
+      case S_STOP:
+        STOP = TRUE;
+        break;
+    }
+  }
+  return res;
+}
+
+int send_UA(int fd, char ch){
+  printf("Entrei no send_UA\n");
+  int res;
+  //Frame
+  unsigned char buffer[5];
+
+  if(ch == 'T'){
+    printf("Sending UA from transmiter\n");
+    buffer[0] = 0x7E;                 //F
+    buffer[1] = 0x03;                 //A   Tx ---> Rx
+    buffer[2] = 0x07;                 //C
+    buffer[3] = buffer[1]^buffer[2];  //BCC = A^C
+    buffer[4] = 0x7E;                 //F
+  }
+  else if(ch == 'R'){
+    printf("Sending UA from recetor\n");
+    buffer[0] = 0x7E;                 //F
+    buffer[1] = 0x01;                 //A   Rx ---> Tx
+    buffer[2] = 0x07;                 //C
+    buffer[3] = buffer[1]^buffer[2];  //BCC = A^C
+    buffer[4] = 0x7E;                 //F
+  }
+
+  res = write(fd, buffer, sizeof(buffer));
+  if(res<0) printf("Error reading\n");
+
+  return res;
+}
+
+int receive_UA(int fd, char ch){
+  printf("Entrei no receive_UA\n");
+
+  states state = START;
+  int res;
+  char character;
+  unsigned char buffer[5];
+  int pos = 0;
+  char adress;
+  STOP = FALSE;
+
+  if(ch == 'T'){
+    adress = 0x03;
+  }
+  else if(ch = 'R'){
+    adress = 0x01;
+  }
+
+  while(STOP == FALSE){
+
+    do{
+      res = read(fd, &character, 1);
+    }while(res < 1);  /* returns after 1 chars have been input */
+    //printf("Cheguei aqui\n");
+    if(res < 0){
+      printf("Error reading\n");
+    }
+    buffer[pos] = character;
+
+    if(timeout==TRUE){
+      return 0;
+    }
+
+    switch(state){
+
+      case START:
+        if(buffer[pos] == FLAG_RCV){
+          //printf("State machine do SET: START");
+          state = FLAG;
+          pos = 1;
+        }
+         else {
+           state = START;
+           pos = 0;
+           }
+
+        break;
+
+      case FLAG:
+        if(buffer[pos] == adress){
+          state = A;
+          pos = 2;
+        }
+        else if(buffer[pos] == FLAG_RCV){
+          state = FLAG;
+          pos = 1;
+        }
+         else {
+           state = START;
+           pos = 0;
+         }
+        break;
+
+      case A:
+        if(buffer[pos] == C_RCV){
+          state = C;
+          pos = 3;
+        }
+        else if(buffer[pos] == FLAG_RCV){
+          state = FLAG;
+          pos = 2;
+        }
+        else {
+          state = START;
+          pos = 0;
+        }
+        break;
+  if(res < 0){
+      printf("Error reading RECEIVE DATA\n");
+    }
+      case C:
+        if(buffer[pos] == adress^C_RCV){
+          state = BCC;
+          pos = 4;
+        }
+        else if(buffer[pos] == FLAG_RCV){
+          state = FLAG;
+          pos = 1;
+        }
+        else {
+          state = START;
+          pos = 0;
+        }
+        break;
+
+      case BCC:
+        if(buffer[pos] == FLAG_RCV){
+          state = S_STOP;
+        }
+        else {
+          state = START;
+          pos = 0;
+        }
+        break;
+
+      case S_STOP:
+        STOP = TRUE;
+        printf("\nLigação completa\n");
+        break;
+    }
+  }
+
+  return res;
+}
+
+int send_DATA(int fd, char* buffer, int buffSize){
+  printf("Entrei no send_DATA\n");
+  int res, i, new_size;
+  char new_buf[2048], aux_buf[buffSize + 6];
+  char flag_BCC2 = 0x00;
+
+  //Frame
+  aux_buf[0] = 0x7E;                 //F
+  aux_buf[1] = 0x03;                 //A   Tx ---> Rx
+  aux_buf[2] = 0x03;
+  //C
+  /*if(Ns == 0){                       //   0 = 0x00 e 1 = 0x40
+    aux_buf[2] = 0x00;
+    printf("send_data: Ns=0\n");
+  }
+  else if(Ns ==1){
+    aux_buf[2] = 0x40;
+    printf("send_data: Ns=1\n");
+  }*/
+  aux_buf[3] = aux_buf[1]^aux_buf[2];  //BCC1 = A^C
+
+  for (int i = 0; i < buffSize; i++){
+    aux_buf[4 + i] = buffer[i];
+    flag_BCC2 ^= buffer[i];
+  }
+
+  aux_buf[buffSize + 4] = flag_BCC2;   //BCC2 = D^D^D^D
+  aux_buf[buffSize + 5] = 0x7E;
+
+  new_size = byteStuffing(aux_buf, buffSize + 6, new_buf);
+
+  res = write(fd, new_buf, new_size);
+  if(res<0) printf("Error reading SEND DATA\n");
+
+  return res;
+}
+
+int receive_DATA(int fd, char* buffer, int buffSize){
+  printf("\nEntrei no receive_DATA\n");
+  data_states state = data_START;
+  int res = 0, i = 0, j, pos = 0, new_size;
+  char character, flag_BCC2 = 0x00, new_buf[buffSize], control;      //Tamanho para os dados
+  unsigned char aux_buffer[5];
+  STOP = FALSE;
+
+  /*if(Ns == 0){                       //C   0 = 0x00 e 1 = 0x40
+    control = 0x00;
+    printf("receive_data: Ns=0\n");
+  }
+  else if(Ns ==1){
+    control = 0x40;
+    printf("receive_data: Ns=1\n");
+  }*/
+  control = 0x03;
+
+  while(STOP == FALSE){
+    do {
+      res = read(fd, &character, 1);
+    } while(res < 1);   // returns after 1 chars have been input
+    aux_buffer[pos]=character;
+
+    if(timeout==TRUE){
+      return 0;
+    }
+
+    switch(state){
+      case data_START:
+        //printf("estou no START do receive_DATA\n");
+        if(aux_buffer[pos] == FLAG_TM){
+          state = data_FLAG;
+          pos = 1;
+        }
+         else {
+           state = data_START;
+           pos = 0;
+           }
+        break;
+
+      case data_FLAG:
+        //printf("estou no FLAG do receive_data\n");
+        if(aux_buffer[pos] == A_TM){
+          state = data_A;
+          pos = 2;
+        }
+        else if(aux_buffer[pos] == FLAG_TM){
+          state = data_FLAG;
+          pos = 1;
+        }
+         else {
+           state = data_START;
+           pos = 0;
+         }
+        break;
+
+      case data_A:
+        //printf("estou no A do receive_data\n");
+        if(aux_buffer[pos] == control){
+          state = C;
+          pos = 3;
+        }
+        else if(aux_buffer[pos] == FLAG_TM){
+          state = data_FLAG;
+          pos = 2;
+        }
+        else {
+          state = data_START;
+          pos = 0;
+        }
+        break;
+
+      case data_C:
+        //printf("estou no C do receive_data\n");
+        if(aux_buffer[pos] == A_TM^control){
+          state = BCC1;
+          pos = 4;
+        }
+        else if(aux_buffer[pos] == FLAG_TM){
+          state = data_FLAG;
+          pos = 1;
+        }
+        else {
+          state = data_START;
+          pos = 0;
+        }
+        break;
+
+      case BCC1:
+        //printf("estou no BCC1 do receive_DATA\n");
+        new_buf[i] = aux_buffer[pos];  //pos = 4
+        i++;
+
+        if(aux_buffer[pos] == FLAG_RCV){
+          state = DATA;
+          i--;
+          printf("i=%d\n", i + 5); //Primeiro = 1012
+        }
+        break;
+
+      case DATA:
+        printf("estou no DATA do receive_DATA\n");
+        new_size = byteDestuffing(new_buf, i-1, buffer);
+        printf("new_size: %d\n", new_size);
+        //Calcula BCC2
+        for(j = 0; j < new_size; j++){
+          flag_BCC2 ^= buffer[j];
+        }
+
+        if(new_buf[i-1] == flag_BCC2){
+          state = BCC2;
+        }
+        else{
+          REJ = TRUE;
+        }
+
+        break;
+
+      case BCC2:
+        printf("estou no BCC2 do receive_DATA\n");
+        if(new_buf[i] == FLAG_TM){
+          printf("Entrei aqui\n");
+          state = data_S_STOP;
+        }
+        else {
+          state = data_START;
+          pos = 0;
+        }
+        break;
+
+      case data_S_STOP:
+        printf("estou no STOP do receive_DATA\n");
+        i=0;
+        STOP = TRUE;
+        break;
+    }
+  }
+  return new_size;
+}
+
+int send_ACK(int fd, char ch){
+  printf("Entrei no send_ACK\n");
+  int res;
+  unsigned char buffer[5];
+
+  //Frame
+  buffer[0] = 0x7E;                 //F
+  buffer[1] = 0x03;                 //A   Tx ---> Rx
+
+  //C
+  /*if(ch == 'P'){  //Positive ACK
+    //printf("Sending Positive ACK (RR) from transmiter\n");
+    if(Nr == 0){
+      buffer[2] = 0x05;
+      printf("send_ack: sent RR Nr=0\n");
+    }
+    else if(Nr == 1){
+      buffer[2] = 0x85;
+      printf("send_ack: sent RR Nr=1\n");
+    }
+  }
+  else if(ch == 'N'){ //Negative ACK
+    //printf("Sending Negative ACK (REJ) from transmiter\n");
+    if(Nr == 0){
+      buffer[2] = 0x01;
+      printf("send_ack: sent REJ Nr=0\n");
+    }
+    else if(Nr ==1){
+      buffer[2] = 0x81;
+      printf("send_ack: sent REJ Nr=1\n");
+    }
+  }*/
+
+  if(ch == 'P'){  //Positive ACK
+    buffer[2] = 0x05;
+  }
+  else if(ch == 'N'){ //Negative ACK
+    buffer[2] = 0x01;
+  }
+
+  buffer[3] = buffer[1]^buffer[2];  //BCC = A^C
+  buffer[4] = 0x7E;                 //F
+
+  res = write(fd, buffer, sizeof(buffer));
+  if(res<0) printf("Error reading\n");
+
+  return res;
+}
+
+int receive_ACK(int fd, char ch){
+  printf("Entrei no receive_ACK\n");
+  states state = START;
+  int res, pos = 0;
+  char character, control;
+  unsigned char buffer[5];
+  STOP = FALSE;
+
+  /*if(ch == 'P'){                //Positive ACK (RR)
+    if(Nr == 0){                //0 = 0x01 e 1 = 0x21
+      control = 0x05;
+      printf("receive_ack: received RR Nr=0\n");
+    }
+    else if(Nr == 1){
+      control = 0x85;
+      printf("receive_ack: received RR Nr=1\n");
+    }
+  }
+  else if(ch == 'N'){           //Negative ACK (REJ)
+    if(Nr == 0){                //0 = 0x03 e 1 = 0x23
+      control = 0x01;
+      printf("receive_ack: received REJ Nr=0\n");
+    }
+    else if(Nr == 1){
+      control = 0x81;
+      printf("receive_ack: received REJ Nr=1\n");
+    }
+  }*/
+
+  if(ch == 'P'){  //Positive ACK
+    control = 0x05;
+  }
+  else if(ch == 'N'){ //Negative ACK
+    control = 0x01;
+  }
+
+  while(STOP == FALSE){
+
+    do{
+      res = read(fd, &character, 1);
+    }while(res < 1);   /* returns after 1 chars have been input */
+    //printf("Cheguei aqui\n");
+    if(res < 0){
+      printf("Error reading\n");
+    }
+    buffer[pos] = character;
+
+    if(timeout==TRUE){
+      return 0;
+    }
+
+    switch(state){
+
+      case START:
+        if(buffer[pos] == FLAG_RCV){
+          //printf("State machine do SET: START");
+          state = FLAG;
+          pos = 1;
+        }
+         else {
+           state = START;
+           pos = 0;
+           }
+
+        break;
+
+      case FLAG:
+        if(buffer[pos] == A_TM){
+          state = A;
+          pos = 2;
+        }
+        else if(buffer[pos] == FLAG_RCV){
+          state = FLAG;
+          pos = 1;
+        }
+         else {
+           state = START;
+           pos = 0;
+         }
+        break;
+
+      case A:
+        if(buffer[pos] == control){
+          state = C;
+          pos = 3;
+        }
+        else if(buffer[pos] == FLAG_RCV){
+          state = FLAG;
+          pos = 2;
+        }
+        else {
+          state = START;
+          pos = 0;
+        }
+        break;
+
+      case C:
+        if(buffer[pos] == A_TM^control){
+          state = BCC;
+          pos = 4;
+        }
+        else if(buffer[pos] == FLAG_RCV){
+          state = FLAG;
+          pos = 1;
+        }
+        else {
+          state = START;
+          pos = 0;
+        }
+        break;
+
+      case BCC:
+        if(buffer[pos] == FLAG_RCV){
+          state = S_STOP;
+        }
+        else {
+          state = START;
+          pos = 0;
+        }
+        break;
+
+      case S_STOP:
+        STOP = TRUE;
+        ACK_RCV = TRUE;
+        printf("\nLigação completa\n");
+        break;
+    }
+  }
+
+  return res;
+}
+
+int byteStuffing(char* trama, int length, char* novaTrama){
+
+  int newLength = 1;
+  novaTrama[0] = trama[0];
+
+  for (int i = 1; i < length - 1; i++){
+    if (trama[i] == 0x7e){
+      novaTrama[newLength++] = ESCAPE;
+      novaTrama[newLength++] = 0x5e;//(0x7e ^ 0x20);
+    }
+    else if (trama[i] == ESCAPE) {
+      novaTrama[newLength++] = ESCAPE;
+      novaTrama[newLength++] = 0x5d;//(ESCAPE ^ 0x20);
+    }
+    else {
+      novaTrama[newLength++] = trama[i];
+    }
+  }
+
+  novaTrama[newLength++] = trama[length - 1];
+
+  return newLength;
+}
+
+int byteDestuffing(char *trama, int length, char *novaTrama){
+
+  int newLength = 0;
+
+  for (int i = 0; i < length; i++){
+    if (trama[i] == ESCAPE && trama[i + 1] == 0x5e){
+      novaTrama[newLength++] = 0x7e;
+      i++;
+    }
+    else if (trama[i] == ESCAPE && trama[i + 1] == 0x5d){
+      novaTrama[newLength++] = 0x7d;
+      i++;
+    }
+    else{
+      novaTrama[newLength++] = trama[i];
+    }
+  }
+
+  return newLength;
+}
