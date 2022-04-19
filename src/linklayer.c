@@ -920,7 +920,7 @@ int transmitter(char* fname) {
   return 0;
 
 }
-
+/*
 int main(int argc, char** argv) {
 
 		struct timeval starttime, endtime;
@@ -970,4 +970,4 @@ int main(int argc, char** argv) {
 	}
 
   return -7;
-}
+}*/
