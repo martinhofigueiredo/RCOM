@@ -197,7 +197,7 @@ int llread(char* packet){
     }
   }
 
-  result = receive_DATA(fd, packet, 2000);
+  result = receive_DATA(fd, packet, MAX_PAYLOAD_SIZE);
   printf("Bytes received: %d bytes", result);
 
   if(REJ == TRUE){
@@ -699,7 +699,7 @@ int receive_DATA(int fd, char* buffer, int buffSize){
     control = 0x40;
     printf("receive_data: Ns=1\n");
   }
-
+  
   while(STOP == FALSE){
     res = read(fd, &character, 1);   // returns after 1 chars have been input 
     if(res < 0){
