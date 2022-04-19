@@ -704,6 +704,7 @@ int receive_DATA(int fd, char* buffer, int buffSize){
     res = read(fd, &character, 1);   // returns after 1 chars have been input 
     if(res < 0){
       printf("Error reading 8\n");
+      break;
     } 
     aux_buffer[pos]=character;
 
