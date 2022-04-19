@@ -64,11 +64,11 @@ int llopen(linkLayer connectionParameters){
   int i, sum = 0, speed = 0;
   linklayer = connectionParameters;
     
-  if ((strcmp("/dev/ttyS3", linklayer.serialPort)!=0) && 
+  /*if ((strcmp("/dev/ttyS3", linklayer.serialPort)!=0) && 
         (strcmp("/dev/ttyS4", linklayer.serialPort)!=0) ) {
     printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
     exit(1);
-  }
+  }*/
 
   fd = open(linklayer.serialPort, O_RDWR | O_NOCTTY );
   if (fd <0) {perror(connectionParameters.serialPort); exit(-1); }
