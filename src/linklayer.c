@@ -17,7 +17,6 @@
 #define FLAG_TM 0x7E
 #define A_TM 0x03
 #define C_TM 0x03
-
 #define ESCAPE 0x7d
 
 int timeout = FALSE, count=1;
@@ -25,7 +24,7 @@ int STOP = FALSE;
 int fd;
 int ACK_RCV = FALSE;
 int REJ = FALSE;
-//int Ns = 0, Nr = 1;
+int Ns = 0, Nr = 1;
 linkLayer linklayer;
 
 //State machine
@@ -38,8 +37,6 @@ typedef enum{
 typedef enum{
     data_START, data_FLAG, data_A, data_C, BCC1, DATA, BCC2, data_S_STOP
 }data_states;
-
-struct termios oldtio, newtio;
 
 int send_SET(int fd);
 int receive_SET(int fd);
@@ -59,18 +56,19 @@ int byteStuffing(char* trama, int length, char* novaTrama);
 // Opens a conection using the "port" parameters defined in struct linkLayer,
 // returns "-1" on error and "1" on sucess
 
-int llopen(linkLayer connectionParameters){
+int llopen(linkLayer connectionParameters){   
 
-  int result;//,c;
-  //char buf[255];
-  //int i, sum = 0, speed = 0;
+  int c, result;
+  struct termios oldtio, newtio;
+  char buf[255];
+  int i, sum = 0, speed = 0;
   linklayer = connectionParameters;
-
- /*  if ((strcmp("/dev/ttyS10", linklayer.serialPort)!=0) &&
-        (strcmp("/dev/ttyS11", linklayer.serialPort)!=0) ) {
+    
+  if ((strcmp("/dev/ttyS3", linklayer.serialPort)!=0) && 
+        (strcmp("/dev/ttyS4", linklayer.serialPort)!=0) ) {
     printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
     exit(1);
-  } */
+  }
 
   fd = open(linklayer.serialPort, O_RDWR | O_NOCTTY );
   if (fd <0) {perror(connectionParameters.serialPort); exit(-1); }
@@ -108,7 +106,7 @@ int llopen(linkLayer connectionParameters){
     printf("First SET sended: %d\n", result);
 
     timeout=FALSE;
-
+                                                                                                    
     while(STOP == FALSE && (count < 4)){  //retransmite até 3x
 
       // If exceeded (time-out), forces retransmission
@@ -118,13 +116,13 @@ int llopen(linkLayer connectionParameters){
         printf("Resending SET: %dbytes\n", result);
         timeout=FALSE;
       }
-
+      
       if(timeout==FALSE){
         printf("timeout false\n");
         alarm(3);
         receive_UA(fd, 'R');
       }
-
+        
     }
   }else if(linklayer.role == 1){     //Receiver
 
@@ -150,16 +148,16 @@ int llwrite(char* buf, int bufSize){
 
   while(ACK_RCV == FALSE && (count < 4)){  //retransmite até 3x
     // If exceeded (time-out), forces retransmission
-    if(timeout == TRUE || REJ == TRUE){
+    if(timeout == TRUE || REJ == TRUE){ 
       count++;
       result = send_DATA(fd, buf, bufSize);
       printf("Resending DATA: %dbytes\n", result);
       timeout=FALSE;
       REJ = FALSE;
     }
-
+    
     if(timeout==FALSE){
-      //printf("timeout false\n");
+      printf("timeout false\n");
       alarm(3);
       if(REJ == TRUE){
         receive_ACK(fd, 'N'); //Receive Negative ACK (REJ)  from receiver
@@ -168,7 +166,7 @@ int llwrite(char* buf, int bufSize){
         receive_ACK(fd, 'P'); //Receive positive ACK (RR) from receiver
       }
     }
-  } /*
+  }
   //Ligação corre bem
   if(ACK_RCV == TRUE){
     if(Ns == 0 && Nr == 1){
@@ -179,32 +177,41 @@ int llwrite(char* buf, int bufSize){
       Ns = 0;
       Nr = 1;
     }
-  }*/
+  }
   alarm(0);
   return result;
 }
 
 // Receive data in packet
 int llread(char* packet){
-  int result;
+  int result; 
+
+  if(ACK_RCV == TRUE){
+    if(Ns == 0 && Nr == 1){
+      Ns = 1;
+      Nr = 0;
+    }
+    else if(Ns == 1 && Nr == 0){
+      Ns = 0;
+      Nr = 1;
+    }
+  }
 
   result = receive_DATA(fd, packet, 2000);
   printf("Bytes received: %d bytes", result);
 
-  if(result > 0){
-    if(REJ == TRUE){
-      send_ACK(fd, 'N'); //Send Negative ACK (REJ) from receiver
-    }
-    else{
-      send_ACK(fd, 'P'); //Send Positive ACK (RR) from receiver
-    }
+  if(REJ == TRUE){
+    send_ACK(fd, 'N'); //Send Negative ACK (REJ) from receiver
+  }
+  else{
+    send_ACK(fd, 'P'); //Send Positive ACK (RR) from receiver
   }
 
   return result;
 }
 
 //======================================================================================
-/* Closes previously opened connection; if showStatistics==TRUE, link layer should print
+/* Closes previously opened connection; if showStatistics==TRUE, link layer should print 
 statistics in the console on close*/
 
 int llclose(int showStatistics){
@@ -226,7 +233,7 @@ int llclose(int showStatistics){
         printf("Resending DISC: %dbytes\n", result);
         timeout=FALSE;
       }
-
+      
       if(timeout==FALSE){
         printf("timeout false\n");
         alarm(3);
@@ -238,18 +245,17 @@ int llclose(int showStatistics){
       result = send_UA(fd, 'T');
       printf("UA sent: %d\n", result);
     }
-
+    
   }
   else if(linklayer.role == 1){
     receive_DISC(fd, 'T');
     result = send_DISC(fd,'R');
     printf("Bytes sent from recetor: %d bytes\n", result);
-
+    
     receive_UA(fd,'T');
 
   }
-  return 0;
-  //fechar termios
+ 
   close(fd);
 }
 
@@ -261,18 +267,18 @@ void alarm_handler()  // atende alarme
 }
 
 int send_SET(int fd){
-
+  
   int res;
   //Frame
-  unsigned char buffer[5];
+  unsigned char buffer[5]; 
 
   printf("Sending SET\n");
   buffer[0] = 0x7E;                 //F
   buffer[1] = 0x03;                 //A   Tx ---> Rx
-  buffer[2] = 0x03;                 //C
+  buffer[2] = 0x03;                 //C    
   buffer[3] = buffer[1]^buffer[2];  //BCC = A^C
   buffer[4] = 0x7E;                 //F
-
+  
   res = write(fd, buffer, sizeof(buffer));
   if(res < 0) printf("Error reading\n");
 
@@ -289,10 +295,7 @@ int receive_SET(int fd){
   STOP = FALSE;
 
   while(STOP == FALSE){
-    do {
-      res = read(fd, &character, 1);
-    } while(res < 1);
-      /* returns after 1 chars have been input */
+    res = read(fd, &character, 1);   /* returns after 1 chars have been input */
     if(res < 0){
       printf("Error reading\n");
     }
@@ -306,7 +309,7 @@ int receive_SET(int fd){
         }
          else {
            state = START;
-           pos = 0;
+           pos = 0;                                                      
            }
         break;
 
@@ -316,7 +319,7 @@ int receive_SET(int fd){
           pos = 2;
         }
         else if(buffer[pos] == FLAG_TM){
-          state = FLAG;
+          state = FLAG; 
           pos = 1;
         }
          else {
@@ -339,9 +342,9 @@ int receive_SET(int fd){
           pos = 0;
         }
         break;
-
+      
       case C:
-        if(buffer[pos] == (A_TM^C_TM)){
+        if(buffer[pos] == A_TM^C_TM){
           state = BCC;
           pos = 4;
         }
@@ -354,7 +357,7 @@ int receive_SET(int fd){
           pos = 0;
         }
         break;
-
+      
       case BCC:
         if(buffer[pos] == FLAG_TM){
           state = S_STOP;
@@ -375,13 +378,13 @@ int receive_SET(int fd){
 
 int send_DISC(int fd, char ch){
   int res;
-  unsigned char buffer[5];
+  unsigned char buffer[5]; 
 
   if(ch == 'T'){
     printf("\nSending DISC from transmiter\n");
     buffer[0] = 0x7E;                 //F
     buffer[1] = 0x03;                 //A   Tx ---> Rx
-    buffer[2] = 0x0B;                 //C
+    buffer[2] = 0x0B;                 //C    
     buffer[3] = buffer[1]^buffer[2];  //BCC = A^C
     buffer[4] = 0x7E;                 //F
   }
@@ -389,7 +392,7 @@ int send_DISC(int fd, char ch){
     printf("Sending DISC from recetor\n");
     buffer[0] = 0x7E;                 //F
     buffer[1] = 0x01;                 //A   Rx ---> Tx
-    buffer[2] = 0x0B;                 //C
+    buffer[2] = 0x0B;                 //C    
     buffer[3] = buffer[1]^buffer[2];  //BCC = A^C
     buffer[4] = 0x7E;                 //F
   }
@@ -413,14 +416,12 @@ int receive_DISC(int fd, char ch){
   if(ch == 'T'){
     adress = 0x03;
   }
-  else if(ch == 'R'){
+  else if(ch = 'R'){
     adress = 0x01;
   }
 
   while(STOP == FALSE){
-    do {
-      res = read(fd, &character, 1);
-    } while(res < 1);  /* returns after 1 chars have been input */
+    res = read(fd, &character, 1);   /* returns after 1 chars have been input */
     if(res < 0){
       printf("Error reading\n");
     }
@@ -438,7 +439,7 @@ int receive_DISC(int fd, char ch){
         }
          else {
            state = START;
-           pos = 0;
+           pos = 0;                                                      
            }
         break;
 
@@ -448,7 +449,7 @@ int receive_DISC(int fd, char ch){
           pos = 2;
         }
         else if(buffer[pos] == FLAG_RCV){
-          state = FLAG;
+          state = FLAG; 
           pos = 1;
         }
          else {
@@ -471,9 +472,9 @@ int receive_DISC(int fd, char ch){
           pos = 0;
         }
         break;
-
+      
       case C:
-        if(buffer[pos] == (adress^control)){
+        if(buffer[pos] == adress^control){
           state = BCC;
           pos = 4;
         }
@@ -486,7 +487,7 @@ int receive_DISC(int fd, char ch){
           pos = 0;
         }
         break;
-
+      
       case BCC:
         if(buffer[pos] == FLAG_RCV){
           state = S_STOP;
@@ -509,13 +510,13 @@ int send_UA(int fd, char ch){
   printf("Entrei no send_UA\n");
   int res;
   //Frame
-  unsigned char buffer[5];
+  unsigned char buffer[5]; 
 
   if(ch == 'T'){
     printf("Sending UA from transmiter\n");
     buffer[0] = 0x7E;                 //F
     buffer[1] = 0x03;                 //A   Tx ---> Rx
-    buffer[2] = 0x07;                 //C
+    buffer[2] = 0x07;                 //C    
     buffer[3] = buffer[1]^buffer[2];  //BCC = A^C
     buffer[4] = 0x7E;                 //F
   }
@@ -523,14 +524,14 @@ int send_UA(int fd, char ch){
     printf("Sending UA from recetor\n");
     buffer[0] = 0x7E;                 //F
     buffer[1] = 0x01;                 //A   Rx ---> Tx
-    buffer[2] = 0x07;                 //C
+    buffer[2] = 0x07;                 //C    
     buffer[3] = buffer[1]^buffer[2];  //BCC = A^C
     buffer[4] = 0x7E;                 //F
   }
 
   res = write(fd, buffer, sizeof(buffer));
   if(res<0) printf("Error reading\n");
-
+    
   return res;
 }
 
@@ -548,15 +549,13 @@ int receive_UA(int fd, char ch){
   if(ch == 'T'){
     adress = 0x03;
   }
-  else if(ch == 'R'){
+  else if(ch = 'R'){
     adress = 0x01;
   }
 
   while(STOP == FALSE){
-
-    do{
-      res = read(fd, &character, 1);
-    }while(res < 1);  /* returns after 1 chars have been input */
+    
+    res = read(fd, &character, 1);   /* returns after 1 chars have been input */
     //printf("Cheguei aqui\n");
     if(res < 0){
       printf("Error reading\n");
@@ -568,7 +567,7 @@ int receive_UA(int fd, char ch){
     }
 
     switch(state){
-
+      
       case START:
         if(buffer[pos] == FLAG_RCV){
           //printf("State machine do SET: START");
@@ -577,7 +576,7 @@ int receive_UA(int fd, char ch){
         }
          else {
            state = START;
-           pos = 0;
+           pos = 0;                                                      
            }
 
         break;
@@ -588,7 +587,7 @@ int receive_UA(int fd, char ch){
           pos = 2;
         }
         else if(buffer[pos] == FLAG_RCV){
-          state = FLAG;
+          state = FLAG; 
           pos = 1;
         }
          else {
@@ -611,11 +610,9 @@ int receive_UA(int fd, char ch){
           pos = 0;
         }
         break;
-  if(res < 0){
-      printf("Error reading RECEIVE DATA\n");
-    }
+      
       case C:
-        if(buffer[pos] == (adress^C_RCV)){
+        if(buffer[pos] == adress^C_RCV){
           state = BCC;
           pos = 4;
         }
@@ -628,7 +625,7 @@ int receive_UA(int fd, char ch){
           pos = 0;
         }
         break;
-
+      
       case BCC:
         if(buffer[pos] == FLAG_RCV){
           state = S_STOP;
@@ -645,44 +642,44 @@ int receive_UA(int fd, char ch){
         break;
     }
   }
-
+  printf(buffer);
   return res;
 }
 
 int send_DATA(int fd, char* buffer, int buffSize){
   printf("Entrei no send_DATA\n");
-  int res, new_size;
+  int res, i, new_size;
   char new_buf[2048], aux_buf[buffSize + 6];
   char flag_BCC2 = 0x00;
-
+  
   //Frame
   aux_buf[0] = 0x7E;                 //F
   aux_buf[1] = 0x03;                 //A   Tx ---> Rx
-  aux_buf[2] = 0x03;
+
   //C
-  /*if(Ns == 0){                       //   0 = 0x00 e 1 = 0x40
+  if(Ns == 0){                       //   0 = 0x00 e 1 = 0x40
     aux_buf[2] = 0x00;
     printf("send_data: Ns=0\n");
   }
   else if(Ns ==1){
     aux_buf[2] = 0x40;
     printf("send_data: Ns=1\n");
-  }*/
+  }
   aux_buf[3] = aux_buf[1]^aux_buf[2];  //BCC1 = A^C
-
+  
   for (int i = 0; i < buffSize; i++){
     aux_buf[4 + i] = buffer[i];
     flag_BCC2 ^= buffer[i];
   }
 
   aux_buf[buffSize + 4] = flag_BCC2;   //BCC2 = D^D^D^D
-  aux_buf[buffSize + 5] = 0x7E;
+  aux_buf[buffSize + 5] = 0x7E; 
 
   new_size = byteStuffing(aux_buf, buffSize + 6, new_buf);
 
   res = write(fd, new_buf, new_size);
-  if(res<0) printf("Error reading SEND DATA\n");
-
+  if(res<0) printf("Error reading\n");
+    
   return res;
 }
 
@@ -694,20 +691,20 @@ int receive_DATA(int fd, char* buffer, int buffSize){
   unsigned char aux_buffer[5];
   STOP = FALSE;
 
-  /*if(Ns == 0){                       //C   0 = 0x00 e 1 = 0x40
+  if(Ns == 0){                       //C   0 = 0x00 e 1 = 0x40
     control = 0x00;
     printf("receive_data: Ns=0\n");
   }
   else if(Ns ==1){
     control = 0x40;
     printf("receive_data: Ns=1\n");
-  }*/
-  control = 0x03;
+  }
 
   while(STOP == FALSE){
-    do {
-      res = read(fd, &character, 1);
-    } while(res < 1);   // returns after 1 chars have been input
+    res = read(fd, &character, 1);   // returns after 1 chars have been input 
+    if(res < 0){
+      printf("Error reading\n");
+    } 
     aux_buffer[pos]=character;
 
     if(timeout==TRUE){
@@ -723,7 +720,7 @@ int receive_DATA(int fd, char* buffer, int buffSize){
         }
          else {
            state = data_START;
-           pos = 0;
+           pos = 0;                                                      
            }
         break;
 
@@ -734,7 +731,7 @@ int receive_DATA(int fd, char* buffer, int buffSize){
           pos = 2;
         }
         else if(aux_buffer[pos] == FLAG_TM){
-          state = data_FLAG;
+          state = data_FLAG; 
           pos = 1;
         }
          else {
@@ -758,10 +755,10 @@ int receive_DATA(int fd, char* buffer, int buffSize){
           pos = 0;
         }
         break;
-
+      
       case data_C:
         //printf("estou no C do receive_data\n");
-        if(aux_buffer[pos] == (A_TM^control)){
+        if(aux_buffer[pos] == A_TM^control){
           state = BCC1;
           pos = 4;
         }
@@ -786,7 +783,7 @@ int receive_DATA(int fd, char* buffer, int buffSize){
           printf("i=%d\n", i + 5); //Primeiro = 1012
         }
         break;
-
+      
       case DATA:
         printf("estou no DATA do receive_DATA\n");
         new_size = byteDestuffing(new_buf, i-1, buffer);
@@ -802,9 +799,9 @@ int receive_DATA(int fd, char* buffer, int buffSize){
         else{
           REJ = TRUE;
         }
-
+        
         break;
-
+      
       case BCC2:
         printf("estou no BCC2 do receive_DATA\n");
         if(new_buf[i] == FLAG_TM){
@@ -830,16 +827,16 @@ int receive_DATA(int fd, char* buffer, int buffSize){
 int send_ACK(int fd, char ch){
   printf("Entrei no send_ACK\n");
   int res;
-  unsigned char buffer[5];
+  unsigned char buffer[5];  
 
   //Frame
   buffer[0] = 0x7E;                 //F
   buffer[1] = 0x03;                 //A   Tx ---> Rx
 
   //C
-  /*if(ch == 'P'){  //Positive ACK
+  if(ch == 'P'){  //Positive ACK
     //printf("Sending Positive ACK (RR) from transmiter\n");
-    if(Nr == 0){
+    if(Nr == 0){                       
       buffer[2] = 0x05;
       printf("send_ack: sent RR Nr=0\n");
     }
@@ -850,7 +847,7 @@ int send_ACK(int fd, char ch){
   }
   else if(ch == 'N'){ //Negative ACK
     //printf("Sending Negative ACK (REJ) from transmiter\n");
-    if(Nr == 0){
+    if(Nr == 0){                       
       buffer[2] = 0x01;
       printf("send_ack: sent REJ Nr=0\n");
     }
@@ -858,13 +855,6 @@ int send_ACK(int fd, char ch){
       buffer[2] = 0x81;
       printf("send_ack: sent REJ Nr=1\n");
     }
-  }*/
-
-  if(ch == 'P'){  //Positive ACK
-    buffer[2] = 0x05;
-  }
-  else if(ch == 'N'){ //Negative ACK
-    buffer[2] = 0x01;
   }
 
   buffer[3] = buffer[1]^buffer[2];  //BCC = A^C
@@ -872,7 +862,7 @@ int send_ACK(int fd, char ch){
 
   res = write(fd, buffer, sizeof(buffer));
   if(res<0) printf("Error reading\n");
-
+    
   return res;
 }
 
@@ -884,39 +874,30 @@ int receive_ACK(int fd, char ch){
   unsigned char buffer[5];
   STOP = FALSE;
 
-  /*if(ch == 'P'){                //Positive ACK (RR)
-    if(Nr == 0){                //0 = 0x01 e 1 = 0x21
+  if(ch == 'P'){                //Positive ACK (RR)
+    if(Nr == 0){                //0 = 0x01 e 1 = 0x21         
       control = 0x05;
       printf("receive_ack: received RR Nr=0\n");
     }
     else if(Nr == 1){
       control = 0x85;
       printf("receive_ack: received RR Nr=1\n");
-    }
+    }      
   }
   else if(ch == 'N'){           //Negative ACK (REJ)
-    if(Nr == 0){                //0 = 0x03 e 1 = 0x23
+    if(Nr == 0){                //0 = 0x03 e 1 = 0x23         
       control = 0x01;
       printf("receive_ack: received REJ Nr=0\n");
     }
     else if(Nr == 1){
       control = 0x81;
       printf("receive_ack: received REJ Nr=1\n");
-    }
-  }*/
-
-  if(ch == 'P'){  //Positive ACK
-    control = 0x05;
-  }
-  else if(ch == 'N'){ //Negative ACK
-    control = 0x01;
+    }       
   }
 
   while(STOP == FALSE){
-
-    do{
-      res = read(fd, &character, 1);
-    }while(res < 1);   /* returns after 1 chars have been input */
+    
+    res = read(fd, &character, 1);   /* returns after 1 chars have been input */
     //printf("Cheguei aqui\n");
     if(res < 0){
       printf("Error reading\n");
@@ -928,7 +909,7 @@ int receive_ACK(int fd, char ch){
     }
 
     switch(state){
-
+      
       case START:
         if(buffer[pos] == FLAG_RCV){
           //printf("State machine do SET: START");
@@ -937,7 +918,7 @@ int receive_ACK(int fd, char ch){
         }
          else {
            state = START;
-           pos = 0;
+           pos = 0;                                                      
            }
 
         break;
@@ -948,7 +929,7 @@ int receive_ACK(int fd, char ch){
           pos = 2;
         }
         else if(buffer[pos] == FLAG_RCV){
-          state = FLAG;
+          state = FLAG; 
           pos = 1;
         }
          else {
@@ -971,9 +952,9 @@ int receive_ACK(int fd, char ch){
           pos = 0;
         }
         break;
-
+      
       case C:
-        if(buffer[pos] == (A_TM^control)){
+        if(buffer[pos] == A_TM^control){
           state = BCC;
           pos = 4;
         }
@@ -986,7 +967,7 @@ int receive_ACK(int fd, char ch){
           pos = 0;
         }
         break;
-
+      
       case BCC:
         if(buffer[pos] == FLAG_RCV){
           state = S_STOP;
@@ -1004,7 +985,7 @@ int receive_ACK(int fd, char ch){
         break;
     }
   }
-
+  printf(buffer);
   return res;
 }
 
