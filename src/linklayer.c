@@ -703,7 +703,7 @@ int receive_DATA(int fd, char* buffer, int buffSize){
   while(STOP == FALSE){
     res = read(fd, &character, 1);   // returns after 1 chars have been input 
     if(res < 0){
-      printf("Error reading 8\n");
+      printf("Error reading 8, res: %d\n",res);
       STOP = TRUE;
       break;
     } 
