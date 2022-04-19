@@ -1,4 +1,3 @@
-#include "linklayer.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -8,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include "linklayer.h"
 
 //Receiver
 #define FLAG_RCV 0x7E
@@ -61,9 +61,9 @@ int byteStuffing(char* trama, int length, char* novaTrama);
 
 int llopen(linkLayer connectionParameters){
 
-  int c, result;
-  char buf[255];
-  int i, sum = 0, speed = 0;
+  int result;//,c;
+  //char buf[255];
+  //int i, sum = 0, speed = 0;
   linklayer = connectionParameters;
 
   if ((strcmp("/dev/ttyS10", linklayer.serialPort)!=0) &&
@@ -248,6 +248,7 @@ int llclose(int showStatistics){
     receive_UA(fd,'T');
 
   }
+  return 0;
   //fechar termios
   close(fd);
 }
@@ -340,7 +341,7 @@ int receive_SET(int fd){
         break;
 
       case C:
-        if(buffer[pos] == A_TM^C_TM){
+        if(buffer[pos] == (A_TM^C_TM)){
           state = BCC;
           pos = 4;
         }
@@ -412,7 +413,7 @@ int receive_DISC(int fd, char ch){
   if(ch == 'T'){
     adress = 0x03;
   }
-  else if(ch = 'R'){
+  else if(ch == 'R'){
     adress = 0x01;
   }
 
@@ -472,7 +473,7 @@ int receive_DISC(int fd, char ch){
         break;
 
       case C:
-        if(buffer[pos] == adress^control){
+        if(buffer[pos] == (adress^control)){
           state = BCC;
           pos = 4;
         }
@@ -547,7 +548,7 @@ int receive_UA(int fd, char ch){
   if(ch == 'T'){
     adress = 0x03;
   }
-  else if(ch = 'R'){
+  else if(ch == 'R'){
     adress = 0x01;
   }
 
@@ -614,7 +615,7 @@ int receive_UA(int fd, char ch){
       printf("Error reading RECEIVE DATA\n");
     }
       case C:
-        if(buffer[pos] == adress^C_RCV){
+        if(buffer[pos] == (adress^C_RCV)){
           state = BCC;
           pos = 4;
         }
@@ -650,7 +651,7 @@ int receive_UA(int fd, char ch){
 
 int send_DATA(int fd, char* buffer, int buffSize){
   printf("Entrei no send_DATA\n");
-  int res, i, new_size;
+  int res, new_size;
   char new_buf[2048], aux_buf[buffSize + 6];
   char flag_BCC2 = 0x00;
 
@@ -760,7 +761,7 @@ int receive_DATA(int fd, char* buffer, int buffSize){
 
       case data_C:
         //printf("estou no C do receive_data\n");
-        if(aux_buffer[pos] == A_TM^control){
+        if(aux_buffer[pos] == (A_TM^control)){
           state = BCC1;
           pos = 4;
         }
@@ -972,7 +973,7 @@ int receive_ACK(int fd, char ch){
         break;
 
       case C:
-        if(buffer[pos] == A_TM^control){
+        if(buffer[pos] == (A_TM^control)){
           state = BCC;
           pos = 4;
         }
