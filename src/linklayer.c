@@ -66,8 +66,8 @@ int llopen(linkLayer connectionParameters){
   //int i, sum = 0, speed = 0;
   linklayer = connectionParameters;
 
-  if ((strcmp("/dev/ttyS0", linklayer.serialPort)!=0) &&
-        (strcmp("/dev/ttyS1", linklayer.serialPort)!=0) ) {
+  if ((strcmp("/dev/ttyS10", linklayer.serialPort)!=0) &&
+        (strcmp("/dev/ttyS11", linklayer.serialPort)!=0) ) {
     printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
     exit(1);
   }
