@@ -1,3 +1,5 @@
 cable/cable
 protocol/*.o
 application/*.o
+src/*.o
+main
