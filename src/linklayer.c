@@ -280,7 +280,7 @@ int send_SET(int fd){
   buffer[4] = 0x7E;                 //F
   
   res = write(fd, buffer, sizeof(buffer));
-  if(res < 0) printf("Error reading\n");
+  if(res < 0) printf("Error reading 1\n");
 
   return res;
 }
@@ -297,7 +297,7 @@ int receive_SET(int fd){
   while(STOP == FALSE){
     res = read(fd, &character, 1);   /* returns after 1 chars have been input */
     if(res < 0){
-      printf("Error reading\n");
+      printf("Error reading 2\n");
     }
     buffer[pos]=character;
 
@@ -398,7 +398,7 @@ int send_DISC(int fd, char ch){
   }
 
   res = write(fd, buffer, sizeof(buffer));
-  if(res < 0) printf("Error reading\n");
+  if(res < 0) printf("Error reading 3\n");
 
   return res;
 }
@@ -423,7 +423,7 @@ int receive_DISC(int fd, char ch){
   while(STOP == FALSE){
     res = read(fd, &character, 1);   /* returns after 1 chars have been input */
     if(res < 0){
-      printf("Error reading\n");
+      printf("Error reading 4\n");
     }
     buffer[pos]=character;
 
@@ -530,7 +530,7 @@ int send_UA(int fd, char ch){
   }
 
   res = write(fd, buffer, sizeof(buffer));
-  if(res<0) printf("Error reading\n");
+  if(res<0) printf("Error reading 5\n");
     
   return res;
 }
@@ -558,7 +558,7 @@ int receive_UA(int fd, char ch){
     res = read(fd, &character, 1);   /* returns after 1 chars have been input */
     //printf("Cheguei aqui\n");
     if(res < 0){
-      printf("Error reading\n");
+      printf("Error reading 6\n");
     }
     buffer[pos] = character;
 
@@ -678,7 +678,7 @@ int send_DATA(int fd, char* buffer, int buffSize){
   new_size = byteStuffing(aux_buf, buffSize + 6, new_buf);
 
   res = write(fd, new_buf, new_size);
-  if(res<0) printf("Error reading\n");
+  if(res<0) printf("Error reading 7\n");
     
   return res;
 }
@@ -703,7 +703,7 @@ int receive_DATA(int fd, char* buffer, int buffSize){
   while(STOP == FALSE){
     res = read(fd, &character, 1);   // returns after 1 chars have been input 
     if(res < 0){
-      printf("Error reading\n");
+      printf("Error reading 8\n");
     } 
     aux_buffer[pos]=character;
 
@@ -861,7 +861,7 @@ int send_ACK(int fd, char ch){
   buffer[4] = 0x7E;                 //F
 
   res = write(fd, buffer, sizeof(buffer));
-  if(res<0) printf("Error reading\n");
+  if(res<0) printf("Error reading 9\n");
     
   return res;
 }
@@ -900,7 +900,7 @@ int receive_ACK(int fd, char ch){
     res = read(fd, &character, 1);   /* returns after 1 chars have been input */
     //printf("Cheguei aqui\n");
     if(res < 0){
-      printf("Error reading\n");
+      printf("Error reading 10\n");
     }
     buffer[pos] = character;
 
