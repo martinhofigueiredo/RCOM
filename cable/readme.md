@@ -9,12 +9,20 @@ http://www.virtual-serial-port.com/ (trial version)
 - On Linux:
  https://tibbo.com/support/downloads/vspdl.html (VSPDL)
 
+
+### A. Install socat utility
+```
+sudo apt install socat
+```
+The next line creates the pipe between the ports
+```
+sudo socat -d -d PTY,link=/dev/ttyS10,mode=777 PTY,link=/dev/ttyS11,mode=777
+``` 
+
 ## Or
 ### 1. Install socat utility
 ```
 sudo apt install socat
-
-sudo socat -d -d PTY,link=/dev/ttyS10,mode=777 PTY,link=/dev/ttyS11,mode=777
 ```
 ### 2. Download, compile, and run the virtual cable program "cable.c".
 ```
