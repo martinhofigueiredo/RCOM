@@ -21,28 +21,16 @@ Statistics stats;
 int attemptsCounter = 0;
 
 
-void calculator(){
-    if(C == C_0)
-        C = C_1;
-    else
-        C = C_0;
-    
+unsigned char calculator(){
+    return (C == C_0) ? C_1 : C_0 ;
 }
 
 unsigned char rej_calculator(unsigned char flag){
-    if(flag == C_0)
-        return C_REJ1;
-    else
-        return C_REJ;
+    return (flag == C_0) ? C_REJ1 : C_REJ;
 }
-
+    
 unsigned char rr_calculator(unsigned char flag){
-    // if(flag == C_0)
-    //     return C_RR1;
-    // else
-    //     return C_RR;
     return (flag == C_0) ? C_RR1 : C_RR ;
-
 }
 
 
@@ -243,7 +231,7 @@ int llwrite(char *buf, int bufSize){
     }while(control == flag1);
 
     stats.retransmissions +=retransmissions;
-    calculator();
+    C = calculator();
     free(newBuf);
     return newSize;    
 }
