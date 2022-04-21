@@ -3,8 +3,8 @@ build src/linklayer.o :
 cable:
 	gcc -Wall -o cable/cable.o cable/cable.c
 runtx: main 
-	./main /dev/ttyS0 tx penguin-received.gif
+	./main /dev/ttyS0 tx src/penguin.gif
 runrx: main
-	./main /dev/ttyS0 rx penguin-received.gif
+	./main /dev/ttyS0 rx penguinrx.gif
 clean:
 	rm src/linklayer.o && rm main && rm cable/cable.o
