@@ -15,9 +15,3 @@ jobs:
     - uses: actions/checkout@v3
     - name: Build
       run: make build
-      with:
-        name: write
-        path: scr/exec/writenoncanonical
-        name: read
-        path: scr/exec/writenoncanonical
-
