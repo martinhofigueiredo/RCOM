@@ -1,7 +1,7 @@
 build main: 
 	gcc -Wall src/main.c src/linklayer.c src/util.c -o main
 cable:
-	gcc -Wall -o cable/cable.o cable/cable.c
+	gcc -Wall cable/cable.c -o cable/cable.o
 runtx: main 
 	./main /dev/ttyS0 tx src/penguin.gif
 runrx: main
