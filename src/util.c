@@ -144,14 +144,14 @@ int set_Package(unsigned char *newBuf, char *buf, int bufSize, unsigned char BCC
     newBuf[1] = A_E;
     newBuf[2] = C;
     newBuf[3] = newBuf[1]^newBuf[2];
-    newSize = stuffing(buf, newBuf,bufSize, newSize);
+    newSize = bytestuffing(buf, newBuf,bufSize, newSize);
     newBuf[newSize -2] = BCC2;
     newBuf[newSize -1] = FLAG; 
     return newSize;
 }
 
 
-int stuffing(char *buf, unsigned char *newBuf, int bufSize, int newSize){
+int bytestuffing(char *buf, unsigned char *newBuf, int bufSize, int newSize){
     int index =4;
 
     for(int i=0; i<bufSize; i++){
@@ -180,7 +180,7 @@ int stuffing(char *buf, unsigned char *newBuf, int bufSize, int newSize){
     return newSize;
 }
 
-int destuffing(unsigned char *buf, int size){
+int bytedestuffing(unsigned char *buf, int size){
     int counter = 0;
 
     for(int i=0;i<size;i++){

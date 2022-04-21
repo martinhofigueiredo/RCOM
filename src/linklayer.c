@@ -301,7 +301,7 @@ int llread(char *packet){
                 if(flag == FLAG){
                            
                     helper = newBuf[newSize-2];
-                    newSize = newSize - destuffing(newBuf,newSize -2) - 2;
+                    newSize = newSize - bytedestuffing(newBuf,newSize -2) - 2;
 
                     newBuf = (unsigned char *)realloc(newBuf, newSize);
 
