@@ -1,4 +1,4 @@
-build src/linklayer.o : 
+build main: 
 	gcc -Wall src/main.c src/linklayer.c src/util.c -o main
 cable:
 	gcc -Wall -o cable/cable.o cable/cable.c
