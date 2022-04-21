@@ -1,11 +1,12 @@
-build protocol/linklayer.o : 
+build src/linklayer.o : 
 	gcc -Wall -c src/linklayer.c -o src/linklayer.o 
-app:
+app: src/linklayer.o
 	gcc -Wall src/main.c src/linklayer.o -o main
 cable:
 	gcc -Wall -o cable/cable.o cable/cable.c
-run: src/linklayer.o cable/cable src/main 
-	./main /dev/ttS10 tx penguin-received.gif
-	./main /dev/ttS11 rx penguin-received.gif
+runtx: src/main 
+	./main /dev/ttyS0 tx penguin-received.gif
+runrx:
+	./main /dev/ttyS0 rx penguin-received.gif
 clean:
-	rm src/linklayer.o && rm main && rm cable/cable
+	rm src/linklayer.o && rm main && rm cable/cable.o
