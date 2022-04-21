@@ -1,5 +1,6 @@
-cable/cable
+cable/*.o
 protocol/*.o
 application/*.o
 src/*.o
+penguinrx.gif
 main
