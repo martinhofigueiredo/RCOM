@@ -20,7 +20,17 @@ unsigned char C = C_0;
 Statistics stats;
 int attemptsCounter = 0;
 
+unsigned char calculator(){
+    return (C == C_0) ? C_1 : C_0 ;
+}
 
+unsigned char rej_calculator(unsigned char flag){
+    return (flag == C_0) ? C_REJ1 : C_REJ;
+}
+    
+unsigned char rr_calculator(unsigned char flag){
+    return (flag == C_0) ? C_RR1 : C_RR ;
+}
 
 
 int llopen(linkLayer connectionParameters){
@@ -458,14 +468,4 @@ int llclose(int showStatistics){
 }
 
 
-unsigned char calculator(){
-    return (C == C_0) ? C_1 : C_0 ;
-}
 
-unsigned char rej_calculator(unsigned char flag){
-    return (flag == C_0) ? C_REJ1 : C_REJ;
-}
-    
-unsigned char rr_calculator(unsigned char flag){
-    return (flag == C_0) ? C_RR1 : C_RR ;
-}
