@@ -21,17 +21,6 @@ Statistics stats;
 int attemptsCounter = 0;
 
 
-unsigned char calculator(){
-    return (C == C_0) ? C_1 : C_0 ;
-}
-
-unsigned char rej_calculator(unsigned char flag){
-    return (flag == C_0) ? C_REJ1 : C_REJ;
-}
-    
-unsigned char rr_calculator(unsigned char flag){
-    return (flag == C_0) ? C_RR1 : C_RR ;
-}
 
 
 int llopen(linkLayer connectionParameters){
@@ -330,14 +319,14 @@ int llread(char *packet){
                     } 
                     else{
                             if(control == C_0){
-                                printf("ENtrei aqui2:\n");
+                                printf("ENtrei aqui21:\n");
                                 C = C_REJ1;
                                 unsigned char REJ[5];
                                 set_REJ(REJ,C_REJ1);
                                 write(fd,REJ,5);
                             }
                             else{
-                                printf("ENtrei aqui2:\n");
+                                printf("ENtrei aqui22:\n");
                                 C = C_REJ;
                                 unsigned char REJ[5];
                                 set_REJ(REJ,C_REJ);
@@ -469,3 +458,14 @@ int llclose(int showStatistics){
 }
 
 
+unsigned char calculator(){
+    return (C == C_0) ? C_1 : C_0 ;
+}
+
+unsigned char rej_calculator(unsigned char flag){
+    return (flag == C_0) ? C_REJ1 : C_REJ;
+}
+    
+unsigned char rr_calculator(unsigned char flag){
+    return (flag == C_0) ? C_RR1 : C_RR ;
+}
