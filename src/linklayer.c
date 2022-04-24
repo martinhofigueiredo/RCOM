@@ -35,7 +35,7 @@ unsigned char rr_calculator(unsigned char flag){
 
 int llopen(linkLayer connectionParameters){
         
-      	(void)signal(SIGALRM, alarmHandler);
+      	(void)signal(SIGALRM, alarmHandle);
 
     //Stats initialization
     aux = connectionParameters;
@@ -177,7 +177,7 @@ int llopen(linkLayer connectionParameters){
             return 1;
 }
 
-int llwrite(char *buf, int bufSize){
+int llwrite(unsigned char *buf, int bufSize){
     
 
     int newSize = bufSize + 6;
@@ -186,10 +186,9 @@ int llwrite(char *buf, int bufSize){
     int bytesCounter=0;
    
     unsigned char flag1, flag2;
-    unsigned char flag;
+ 
 
-
-    unsigned char control=0;
+    unsigned char cnt=0;
 
 
     int retransmissions = -1;
@@ -224,10 +223,10 @@ int llwrite(char *buf, int bufSize){
 
         printf("Control_machine\n");
         
-        control = control_machine(fd,flag1,flag2,alarmCount);
+        cnt = control_machine(fd,flag1,flag2,alarmCount);
   
     
-    }while(control == flag1);
+    }while(cnt == flag1);
 
     stats.retransmissions +=retransmissions;
     C = calculator();
@@ -236,13 +235,13 @@ int llwrite(char *buf, int bufSize){
 }
 
 
-int llread(char *packet){
+int llread(unsigned char *packet){
 
-    //size control variables
+    //size cnt variables
     int newSize= 0, position;
 
     //state machine variables;
-    unsigned char flag,control;
+    unsigned char flag,cnt;
     int state = START;
 
     //Message variables
@@ -253,7 +252,7 @@ int llread(char *packet){
     while(state!=FINISH){
 
         if(read(fd,&flag,1)<0)
-            printf("erro aquiiii\n");   
+            printf("Error opening device por (file descriptor)\n");   
 
         switch(state){
 
@@ -275,7 +274,7 @@ int llread(char *packet){
             case A_RCV:
                 if(flag == C_0 || flag == C_1){
                     state = C_RCV;
-                    control = flag;
+                    cnt = flag;
                 }
                 else{
                     if (flag == FLAG)
@@ -285,7 +284,7 @@ int llread(char *packet){
                 }
                 break;
             case C_RCV:
-                if (flag == (A_E^control)){
+                if (flag == (A_E^cnt)){
                     state = BCC_RCV;
                     position = 0;
                 }
@@ -310,7 +309,7 @@ int llread(char *packet){
                     
                     if( BCC2 == helper){
                         printf("ENtrei aqui:\n");
-                        if(control == C_0){
+                        if(cnt == C_0){
                             C = C_RR1;
                             unsigned char RR[5];
                             set_RR(RR,C_RR1);
@@ -328,15 +327,15 @@ int llread(char *packet){
                         }
                     } 
                     else{
-                            if(control == C_0){
-                                printf("ENtrei aqui21:\n");
+                            if(cnt == C_0){
+                                printf("Case C_0:\n");
                                 C = C_REJ1;
                                 unsigned char REJ[5];
                                 set_REJ(REJ,C_REJ1);
                                 write(fd,REJ,5);
                             }
                             else{
-                                printf("ENtrei aqui22:\n");
+                                printf("Case C_1:\n");
                                 C = C_REJ;
                                 unsigned char REJ[5];
                                 set_REJ(REJ,C_REJ);

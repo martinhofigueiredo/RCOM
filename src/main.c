@@ -50,8 +50,8 @@ int main(int argc, char *argv[]) {
 
 		// open file to read
     		char *file_path = argv[3];
-	        int file_desc = open(file_path, O_RDONLY);
-    		if(file_desc < 0) {
+	        int fd = open(file_path, O_RDONLY);
+    		if(fd < 0) {
         		fprintf(stderr, "Error opening file: %s\n", file_path);
         		exit(1);
     		}
@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
 		int bytes_read = 1;
 		while (bytes_read > 0)
 		{
-			bytes_read = read(file_desc, buffer+1, buf_size);
+			bytes_read = read(fd, buffer+1, buf_size);
                         if(bytes_read < 0) {
                                 fprintf(stderr, "Error receiving from link layer\n");
                                 break;
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
 		}
     		// close connection
 		llclose(1);
-    		close(file_desc);
+    		close(fd);
     		return 0;
 			
 	}
@@ -113,8 +113,8 @@ int main(int argc, char *argv[]) {
                 }
 
                 char *file_path = argv[3];
-                int file_desc = open(file_path, O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-		if(file_desc < 0) {
+                int fd = open(file_path, O_RDWR|O_CREAT, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+		if(fd < 0) {
                         fprintf(stderr, "Error opening file: %s\n", file_path);
                         exit(1);
                 }
@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
 			}
 			else if (bytes_read > 0) {
 				if (buffer[0] == 1) {
-					write_result = write(file_desc, buffer+1, bytes_read-1);
+					write_result = write(fd, buffer+1, bytes_read-1);
         		                if(write_result < 0) {
                 			        fprintf(stderr, "Error writing to file\n");
                         		        break;
@@ -150,7 +150,7 @@ int main(int argc, char *argv[]) {
             	}
 		
                 llclose(1);
-                close(file_desc);
+                close(fd);
                 return 0;
 
 

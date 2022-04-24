@@ -76,10 +76,10 @@ void set_DISC2(unsigned char *buf);
 void set_RR(unsigned char *buf, unsigned char RR);
 void set_REJ(unsigned char *buf, unsigned char REJ);
 unsigned char set_BCC2(unsigned char *buf, int size);
-void alarmHandler();
+void alarmHandle();
 int state_machine(int state, unsigned char *buf, int C, int A);
-int set_Package(unsigned char *newBuf, char *buf, int bufSize, unsigned char BCC2, unsigned char C,int newSize);
-int bytestuffing(char *buf, unsigned char *newBuf, int bufSize, int newSize);
+int set_Package(unsigned char *newBuf, unsigned char *buf, int bufSize, unsigned char BCC2, unsigned char C,int newSize);
+int bytestuffing(unsigned char *buf, unsigned char *newBuf, int bufSize, int newSize);
 int bytedestuffing(unsigned char *buf, int size);
 unsigned char control_machine(int fd,unsigned char flag1, unsigned char flag2, int alarmCount);
 

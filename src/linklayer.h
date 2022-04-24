@@ -40,9 +40,9 @@ typedef struct linkLayer{
 // Opens a conection using the "port" parameters defined in struct linkLayer, returns "-1" on error and "1" on sucess
 int llopen(linkLayer connectionParameters);
 // Sends data in buf with size bufSize
-int llwrite(char* buf, int bufSize);
+int llwrite(unsigned char* buf, int bufSize);
 // Receive data in packet
-int llread(char* packet);
+int llread(unsigned char* packet);
 // Closes previously opened connection; if showStatistics==TRUE, link layer should print statistics in the console on close
 int llclose(int showStatistics);
 

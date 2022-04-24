@@ -83,7 +83,7 @@ unsigned char set_BCC2(unsigned char *buf,int size){
     return BCC2;
 }
 
-void alarmHandler(){
+void alarmHandle(){
 
     alarmCount++;
     is_active = TRUE;
@@ -139,7 +139,7 @@ int state_machine(int state, unsigned char *buf, int C, int A){
 }
 
 
-int set_Package(unsigned char *newBuf, char *buf, int bufSize, unsigned char BCC2, unsigned char C, int newSize){
+int set_Package(unsigned char *newBuf,unsigned char *buf, int bufSize, unsigned char BCC2, unsigned char C, int newSize){
     newBuf[0] = FLAG;
     newBuf[1] = A_E;
     newBuf[2] = C;
@@ -151,7 +151,7 @@ int set_Package(unsigned char *newBuf, char *buf, int bufSize, unsigned char BCC
 }
 
 
-int bytestuffing(char *buf, unsigned char *newBuf, int bufSize, int newSize){
+int bytestuffing(unsigned char *buf, unsigned char *newBuf, int bufSize, int newSize){
     int index =4;
 
     for(int i=0; i<bufSize; i++){
