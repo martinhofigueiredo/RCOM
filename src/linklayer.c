@@ -44,7 +44,7 @@ int llopen(linkLayer connectionParameters){
     stats.timeOuts = 0;
 
 
-    printf("\t************Conction Parameters************\n");
+    printf("\t************Connection Parameters************\n");
     printf("\tPort: %s\n",connectionParameters.serialPort);
     fd = open(connectionParameters.serialPort, O_RDWR | O_NOCTTY);
 
