@@ -36,7 +36,7 @@ sudo route add default gw 172.16.1.19
 
 ```s 
 echo 1 > /proc/sys/net/ipv4/ip_forward
-echo 0 >  /proc/sys/net/ipv4/imp_echo_ignore_broadcasts
+echo 0 >  /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
 ```
 # Switches
 
@@ -69,25 +69,38 @@ end
 
 - `PORT` Depende das ligaçoes fisicas no switche
 
-```s 
+```s
+#tux 1 
 configure terminal 
 interface fastethernet 0/PORT
 switchport mode access 
 switchport access vlan 10 
 end
 
+
+# tux 4
 configure terminal 
 interface fastethernet 0/PORT
 switchport mode access 
 switchport access vlan 10 
 end
 
+# tux 4
 configure terminal 
 interface fastethernet 0/PORT
 switchport mode access 
 switchport access vlan 11 
 end
 
+
+# tux 2
+configure terminal 
+interface fastethernet 0/PORT
+switchport mode access 
+switchport access vlan 11 
+end
+
+# router
 configure terminal 
 interface fastethernet 0/PORT 
 switchport mode access 
@@ -113,4 +126,5 @@ interface gigabitethernet 0/0
 ip address 172.16.1.19 255.255.255.0
 no shutdown
 exit
-show interface gigabitethernet 0/0```
+show interface gigabitethernet 0/0
+```
