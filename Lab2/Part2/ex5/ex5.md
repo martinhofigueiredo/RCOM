@@ -31,9 +31,9 @@ sudo route add default gw 172.16.1.19
 
 ```s 
 echo 1 > /proc/sys/net/ipv4/ip_forward
-echo 0 >  /proc/sys/net/ipv4/imp_echo_ignore_broadcasts```
-
-# Switches
+echo 0 >  /proc/sys/net/ipv4/imp_echo_ignore_broadcasts
+```
+## Switches
 
 ## Reset Switch
 
