@@ -3,16 +3,21 @@
 ## 1.Config ips
 No tux 1
 ```s
+sudo ifconfig eth0 down
 sudo ifconfig eth0 172.16.10.1/24
 ```
 No tux 4
 
 ```s
+
+sudo ifconfig eth0 down
 sudo ifconfig eth0 172.16.10.254/24
+sudo ifconfig eth1 down
 sudo ifconfig eth1 172.16.11.253/24
 ```
 No tux 2
 ```s
+sudo ifconfig eth0 down
 sudo ifconfig eth0 172.16.11.1/24
 ```
 ## 2.Config routes
@@ -35,6 +40,10 @@ echo 0 >  /proc/sys/net/ipv4/imp_echo_ignore_broadcasts
 ```
 # Switches
 
+root
+8nortel
+
+
 ## Reset Switch
 
 ```s
@@ -42,7 +51,7 @@ enable
 configure terminal
 no vlan 2-4094
 exit
-copy flash:tux1-clean startup config
+copy flash:tux1-clean startup-config
 reload
 ```
 
@@ -94,7 +103,7 @@ end
 
 ```s
 enable
-copy flash:tux1-clean startup config
+copy flash:tux1-clean startup-config
 reload
 ```
 ## Config Router
