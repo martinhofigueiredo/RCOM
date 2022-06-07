@@ -32,7 +32,7 @@ then
     #sudo route add -net 172.16.11.0/24 gw 172.16.10.254
     printf "        -> to internet through RC (172.16.1.19)\n"
     #sudo route add default gw 172.16.1.19
-    printf "->DNS\n"
+    printf " ->DNS \n"
     #sudo echo "search netlab.fe.up.pt\n nameserver  172.16.1.2" > /etc/resolv.conf
 
 
@@ -51,20 +51,20 @@ then
     #echo 1 > /proc/sys/net/ipv4/ip_forward
     #echo 0 >  /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts
     printf "....Done"
-    printf "->DNS\n"
+    printf " ->DNS\n"
     #sudo echo "search netlab.fe.up.pt\n nameserver  172.16.1.2" > /etc/resolv.conf
 
 elif [ $tux -eq 2 ]
 then
-    printf "Machine  is Tux %s\n    -> Configuring IP on eth0 Device to 172.16.%s1.0/24\n       -> Bringing interface Down....\n" "$tux" "$Y"
+    printf "Machine  is Tux %s\n    -> Configuring IP on eth0 Device to 172.16.%s1.0/24\n        -> Bringing interface Down....\n" "$tux" "$Y"
     #sudo ifconfig eth0 down
-    printf "    -> Bringing device eth0 back online with IP 172.16.%s1.0/24....\n" "$Y"
+    printf "        -> Bringing device eth0 back online with IP 172.16.%s1.0/24....\n" "$Y"
     #sudo ifconfig eth0 172.16.11.1/24
     printf "    ....Done\n    -> Configuring Routes\n        -> to VLAN%s0 through tux%s4\n" "$Y" "$Y"
     #sudo route add -net 172.16.10.0/24 gw 172.16.11.253
     printf "        -> to internet through RC (172.16.1.19)"
     #sudo route add default gw 172.16.1.19
-    printf "->DNS\n"
+    printf " ->DNS\n"
     #sudo echo "search netlab.fe.up.pt\n nameserver  172.16.1.2" > /etc/resolv.conf
 else
     printf "Not a valid Machine number"
