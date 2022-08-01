@@ -1,5 +1,5 @@
-# RCOM2022
-LAB  1 e 2 de RCOM
+# Redes de Computadores 2022
+LABs de RCOM
 
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/martinhofigueiredo/RCOM2022)
 
